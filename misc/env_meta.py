@@ -35,3 +35,38 @@ def build_PEARL_envs(seed,
     env.action_space.np_random.seed(seed)
 
     return env
+
+def build_HRC_envs(seed,
+                    env_name,
+                    params=None
+                    ):
+    '''
+      Build env from PEARL
+    '''
+
+    if env_name == 'continuous_mountain_car':
+        import rand_param_envs.gym.envs.classic_control.continuous_mountain_car as continuous_mountain_car
+        env_params = {
+                  'n_tasks': params.n_tasks,
+                  'randomize_tasks': params.randomize_tasks
+                 }
+        env = continuous_mountain_car.Continuous_MountainCarEnv_Rand(**env_params)
+    elif env_name == 'sparse-point-robot':
+        env_params = {
+                  'n_tasks': params.n_tasks,
+                  'randomize_tasks': params.randomize_tasks
+                 }
+        import rand_param_envs.gym.envs.classic_control.point_robot as point_robot
+        env = point_robot.PointEnv(**env_params)
+
+    else:
+        env_params = {
+                  'n_tasks' : params.n_tasks,
+                  'randomize_tasks': params.randomize_tasks
+                 }
+
+
+    env.seed(seed)
+    # env.action_space.np_random.seed(seed)
+
+    return env

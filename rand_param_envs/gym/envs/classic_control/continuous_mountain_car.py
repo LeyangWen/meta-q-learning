@@ -14,10 +14,13 @@ https://webdocs.cs.ualberta.ca/~sutton/MountainCar/MountainCar1.cp
 """
 
 import math
+import random
+
 from rand_param_envs import gym
 from rand_param_envs.gym import spaces
 from rand_param_envs.gym.utils import seeding
 import numpy as np
+
 
 class Continuous_MountainCarEnv(gym.Env):
     metadata = {
@@ -25,14 +28,15 @@ class Continuous_MountainCarEnv(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self):
+    def __init__(self, goal_position=0.45, verbose=False):
+        self.verbose = verbose
         self.min_action = -1.0
         self.max_action = 1.0
         self.min_position = -1.2
         self.max_position = 0.6
         self.max_speed = 0.07
-        self.goal_position = 0.45 # was 0.5 in gym, 0.45 in Arnaud de Broissia's version
-        self.power = 0.0015
+        self._goal_position = goal_position  # was 0.5 in gym, 0.45 in Arnaud de Broissia's version
+        self.power = 0.0015*100
 
         self.low_state = np.array([self.min_position, -self.max_speed])
         self.high_state = np.array([self.max_position, self.max_speed])
@@ -50,7 +54,6 @@ class Continuous_MountainCarEnv(gym.Env):
         return [seed]
 
     def _step(self, action):
-
         position = self.state[0]
         velocity = self.state[1]
         force = min(max(action[0], -1.0), 1.0)
@@ -63,12 +66,17 @@ class Continuous_MountainCarEnv(gym.Env):
         if (position < self.min_position): position = self.min_position
         if (position==self.min_position and velocity<0): velocity = 0
 
-        done = bool(position >= self.goal_position)
+        done = bool(position >= self._goal_position)
 
         reward = 0
+        if self.verbose:
+            if random.Random().random() < 0.001:
+                print(f'position: {position:2f}, velocity: {velocity:2f}, action: {action[0]:2f}, done: {done},goal: {self._goal_position:2f}')
+            if done:
+                print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ done')
         if done:
             reward = 100.0
-        reward-= math.pow(action[0],2)*0.1
+        reward -= math.pow(action[0], 2)*0.1
 
         self.state = np.array([position, velocity])
         return self.state, reward, done, {}
@@ -128,8 +136,8 @@ class Continuous_MountainCarEnv(gym.Env):
             backwheel.add_attr(self.cartrans)
             backwheel.set_color(.5, .5, .5)
             self.viewer.add_geom(backwheel)
-            flagx = (self.goal_position-self.min_position)*scale
-            flagy1 = self._height(self.goal_position)*scale
+            flagx = (self._goal_position-self.min_position)*scale
+            flagy1 = self._height(self._goal_position)*scale
             flagy2 = flagy1 + 50
             flagpole = rendering.Line((flagx, flagy1), (flagx, flagy2))
             self.viewer.add_geom(flagpole)
@@ -142,3 +150,35 @@ class Continuous_MountainCarEnv(gym.Env):
         self.cartrans.set_rotation(math.cos(3 * pos))
 
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
+
+
+class Continuous_MountainCarEnv_Rand(Continuous_MountainCarEnv):
+    '''
+    Randomized goal version of Continuous_MountainCarEnv
+    '''
+    def __init__(self, task={}, n_tasks=2, randomize_tasks=True):
+        self._task = task
+        self.tasks = self.sample_tasks(n_tasks)
+        self._goal_position = task.get('goal_position', 0.4)
+        self._goal = self._goal_position
+        # goal_position
+        super(Continuous_MountainCarEnv_Rand, self).__init__(goal_position=self._goal_position)
+
+    def step(self, action):
+        return self._step(action)
+
+    def sample_tasks(self, num_tasks):
+        np.random.seed(1337)
+        goal_positions = np.random.uniform(0.2, 3, size=(num_tasks,))
+        tasks = [{'goal_position': goal_position} for goal_position in goal_positions]
+        return tasks
+
+    def get_all_task_idx(self):
+        return range(len(self.tasks))
+
+    def reset_task(self, idx):
+        self._task = self.tasks[idx]
+        self._goal_position = self._task['goal_position']
+        self._goal = self._goal_position
+        self._reset()
+

@@ -29,7 +29,7 @@ parser.add_argument("--policy_freq", default=2, type=int, help='Frequency of del
 parser.add_argument('--hidden_sizes', nargs='+', type=int, default = [300, 300], help = 'indicates hidden size actor/critic')
 
 # General params
-parser.add_argument('--env_name', type=str, default='ant-goal')
+parser.add_argument('--env_name', type=str, default='continuous_mountain_car')  # leyang
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--alg_name', type=str, default='mql')
 
@@ -45,7 +45,7 @@ parser.add_argument('--save_freq', type=int, default = 250)
 parser.add_argument("--eval_freq", default=5e3, type=float, help = 'How often (time steps) we evaluate')    
 
 # Env
-parser.add_argument('--env_configs', default='./configs/pearl_envs.json')
+parser.add_argument('--env_configs', default='./configs/HRC_envs.json')  # leyang
 parser.add_argument('--max_path_length', type=int, default = 200)
 parser.add_argument('--enable_train_eval', default=False, action='store_true')
 parser.add_argument('--enable_promp_envs', default=False, action='store_true')
@@ -57,7 +57,7 @@ parser.add_argument('--hiddens_conext', nargs='+', type=int, default = [30], hel
 parser.add_argument('--enable_context', default=True, action='store_true')
 parser.add_argument('--only_concat_context', type=int, default = 3, help =' use conext')
 parser.add_argument('--num_tasks_sample', type=int, default = 5)
-parser.add_argument('--num_train_steps', type=int, default = 500)
+parser.add_argument('--num_train_steps', type=int, default = 1000)
 parser.add_argument('--min_buffer_size', type=int, default = 100000, help = 'this indicates a condition to start using num_train_steps')
 parser.add_argument('--history_length', type=int, default = 30)
 
@@ -147,12 +147,20 @@ def make_env(eparams):
     ################
     # this is based on PEARL paper that fixes set of sampels
     ################
-    from misc.env_meta import build_PEARL_envs
-    env = build_PEARL_envs(
-                           seed = eparams.seed,
-                           env_name = eparams.env_name,
-                           params = eparams,
-                           )
+    if False:  # leyang
+        from misc.env_meta import build_PEARL_envs
+        env = build_PEARL_envs(
+                               seed = eparams.seed,
+                               env_name = eparams.env_name,
+                               params = eparams,
+                               )
+    else:
+        from misc.env_meta import build_HRC_envs
+        env = build_HRC_envs(
+                               seed = eparams.seed,
+                               env_name = eparams.env_name,
+                               params = eparams,
+                               )
 
     return env
 
@@ -730,11 +738,10 @@ if __name__ == "__main__":
     print('Start burnining for at least %d' % max_cold_start)
     keep_sampling = True
     avg_length = 0
-    while (keep_sampling == True):
-
+    while keep_sampling:
         for idx in range(args.n_train_tasks):
             tidx = train_tasks[idx]
-            if args.enable_promp_envs == True:
+            if args.enable_promp_envs:
                 env.set_task(tidx) # tidx for promp is task value
 
             else:
@@ -912,12 +919,12 @@ if __name__ == "__main__":
                     tidx = train_tasks[idx]
 
                 if args.enable_promp_envs == True:
-                    env.set_task(tidx) # tidx for promp is task value
+                    env.set_task(tidx)  # tidx for promp is task value
 
                 else:
-                    env.reset_task(tidx) # tidx here is an id
+                    env.reset_task(tidx)  # tidx here is an id
 
-                data = rollouts.run(update_iter, task_id = tidx)
+                data = rollouts.run(update_iter, task_id=tidx)
                 timesteps_since_eval += data['episode_timesteps']
                 update_iter += data['episode_timesteps']
                 epinfobuf.extend(data['epinfos'])

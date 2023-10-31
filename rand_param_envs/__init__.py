@@ -1,4 +1,5 @@
-from rand_param_envs.base import MetaEnv
+# from rand_param_envs.base import MetaEnv
+# leyang: not using mujoco_py, so comment out
 from rand_param_envs.gym.envs.registration import register
 
 register(

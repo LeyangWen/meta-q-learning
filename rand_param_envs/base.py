@@ -1,5 +1,5 @@
 from rand_param_envs.gym.core import Env
-from rand_param_envs.gym.envs.mujoco import MujocoEnv
+# from rand_param_envs.gym.envs.mujoco import MujocoEnv  # leyang: removed since we are not using mujoco
 import numpy as np
 
 

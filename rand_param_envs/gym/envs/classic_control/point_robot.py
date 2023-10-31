@@ -1,11 +1,14 @@
 import numpy as np
 from gym import spaces
 from gym import Env
+from rand_param_envs.gym.utils import seeding
+
+# copied from rlkit.envs
 
 # from . import register_env
-from . import register_env
+# from rlkit.envs import register_env  #leyang
 
-@register_env('point-robot')
+# @register_env('point-robot')  #leyang
 class PointEnv(Env):
     """
     point robot on a 2-D plane with position control
@@ -75,8 +78,13 @@ class PointEnv(Env):
     def render(self):
         print('current state:', self._state)
 
+    @property
+    def _seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
 
-@register_env('sparse-point-robot')
+
+# @register_env('sparse-point-robot')  #leyang
 class SparsePointEnv(PointEnv):
     '''
      - tasks sampled from unit half-circle
