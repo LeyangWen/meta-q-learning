@@ -28,7 +28,7 @@ class Continuous_MountainCarEnv(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self, goal_position=0.45, verbose=False):
+    def __init__(self, goal_position=0.45, verbose=True):
         self.verbose = verbose
         self.min_action = -1.0
         self.max_action = 1.0
@@ -37,6 +37,8 @@ class Continuous_MountainCarEnv(gym.Env):
         self.max_speed = 0.07
         self._goal_position = goal_position  # was 0.5 in gym, 0.45 in Arnaud de Broissia's version
         self.power = 0.0015*100
+        self.cur_step = 0
+        self.max_step = 999  # useless here, specified in main.py args.num_initial_steps
 
         self.low_state = np.array([self.min_position, -self.max_speed])
         self.high_state = np.array([self.max_position, self.max_speed])
@@ -47,7 +49,7 @@ class Continuous_MountainCarEnv(gym.Env):
         self.observation_space = spaces.Box(self.low_state, self.high_state)
 
         self._seed()
-        self.reset()
+        self._reset()
 
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -67,22 +69,31 @@ class Continuous_MountainCarEnv(gym.Env):
         if (position==self.min_position and velocity<0): velocity = 0
 
         done = bool(position >= self._goal_position)
+        time_out = bool(self.cur_step >= self.max_step)
+        self.cur_step += 1
 
         reward = 0
         if self.verbose:
-            if random.Random().random() < 0.001:
-                print(f'position: {position:2f}, velocity: {velocity:2f}, action: {action[0]:2f}, done: {done},goal: {self._goal_position:2f}')
-            if done:
-                print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ done')
+            if random.Random().random() < 0.001: # or done or time_out:
+                print(f'step: {self.cur_step}/{self.max_step}, position: {position:.2f}, velocity: {velocity:.2f}, '
+                      f'action: {action[0]:.2f}, done: {done}, goal: {self._goal_position:.2f}')
+            # if done:
+            #     print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ done')
+            # if time_out:
+            #     print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ time out')
         if done:
             reward = 100.0
         reward -= math.pow(action[0], 2)*0.1
+        # reward -= math.pow((self._goal_position - position), 2)*0.01
 
         self.state = np.array([position, velocity])
+        if time_out:
+            done = True
         return self.state, reward, done, {}
 
     def _reset(self):
         self.state = np.array([self.np_random.uniform(low=-0.6, high=-0.4), 0])
+        self.cur_step = 0
         return np.array(self.state)
 
 #    def get_state(self):
@@ -167,10 +178,14 @@ class Continuous_MountainCarEnv_Rand(Continuous_MountainCarEnv):
     def step(self, action):
         return self._step(action)
 
+    def reset(self):
+        return self._reset()
+
     def sample_tasks(self, num_tasks):
         np.random.seed(1337)
-        goal_positions = np.random.uniform(0.2, 3, size=(num_tasks,))
+        goal_positions = np.random.uniform(0.3, 0.5, size=(num_tasks,))
         tasks = [{'goal_position': goal_position} for goal_position in goal_positions]
+        # print(goal_positions)
         return tasks
 
     def get_all_task_idx(self):

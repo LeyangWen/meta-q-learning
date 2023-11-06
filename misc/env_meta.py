@@ -58,6 +58,13 @@ def build_HRC_envs(seed,
                  }
         import rand_param_envs.gym.envs.classic_control.point_robot as point_robot
         env = point_robot.PointEnv(**env_params)
+    elif env_name == 'kuka-human-response':
+        env_params = {
+                  'n_tasks': params.n_tasks,
+                  'randomize_tasks': params.randomize_tasks
+                 }
+        import rand_param_envs.gym.envs.HRC.kuka_human_response as kuka_human_response
+        env = kuka_human_response.KukaHumanResponse_Rand(**env_params)
 
     else:
         env_params = {

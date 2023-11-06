@@ -9,11 +9,11 @@
     "num_steps_per_eval":400,
     "num_train_steps_per_itr":4000
   },
-    "kuka_human_response":{
-    "n_train_tasks":8,
-    "n_eval_tasks":2,
-    "n_tasks":10,
-    "randomize_tasks":true,
+    "kuka-human-response":{
+    "n_train_tasks":13,
+    "n_eval_tasks":5,
+    "n_tasks":18,
+    "randomize_tasks": false,
     "num_evals":4,
     "num_steps_per_task":400,
     "num_steps_per_eval":400,

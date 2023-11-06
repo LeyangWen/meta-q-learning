@@ -20,7 +20,7 @@ parser.add_argument('--replay_size', type=int, default = 1e6, help ='Replay buff
 parser.add_argument('--ptau', type=float, default=0.005 , help = 'Interpolation factor in polyak averaging')
 parser.add_argument('--gamma', type=float, default=0.99, help = 'Discount factor [0,1]')
 parser.add_argument("--burn_in", default=1e4, type=int, help = 'How many time steps purely random policy is run for') 
-parser.add_argument("--total_timesteps", default=5e6, type=float, help = 'Total number of timesteps to train on')
+parser.add_argument("--total_timesteps", default=5e4, type=float, help = 'Total number of timesteps to train on')
 parser.add_argument("--expl_noise", default=0.2, type=float, help='Std of Gaussian exploration noise')
 parser.add_argument("--batch_size", default=256, type=int, help = 'Batch size for both actor and critic')
 parser.add_argument("--policy_noise", default=0.3, type=float, help =' Noise added to target policy during critic update')
@@ -29,7 +29,7 @@ parser.add_argument("--policy_freq", default=2, type=int, help='Frequency of del
 parser.add_argument('--hidden_sizes', nargs='+', type=int, default = [300, 300], help = 'indicates hidden size actor/critic')
 
 # General params
-parser.add_argument('--env_name', type=str, default='continuous_mountain_car')  # leyang
+parser.add_argument('--env_name', type=str, default='kuka-human-response')  #'continuous_mountain_car')  # leyang
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--alg_name', type=str, default='mql')
 
@@ -46,7 +46,7 @@ parser.add_argument("--eval_freq", default=5e3, type=float, help = 'How often (t
 
 # Env
 parser.add_argument('--env_configs', default='./configs/HRC_envs.json')  # leyang
-parser.add_argument('--max_path_length', type=int, default = 200)
+parser.add_argument('--max_path_length', type=int, default = 999)
 parser.add_argument('--enable_train_eval', default=False, action='store_true')
 parser.add_argument('--enable_promp_envs', default=False, action='store_true')
 parser.add_argument('--num_initial_steps',  type=int, default = 1000)
@@ -129,7 +129,7 @@ def setup_logAndCheckpoints(args):
     create_dir(args.check_point_dir)
 
     fname = str.lower(args.env_name) + '_' + args.alg_name + '_' + args.log_id
-    fname_log = os.path.join(args.log_dir, fname)
+    fname_log = os.path.join(args.log_dir, fname, time.strftime("%Y-%m-%d_%H-%M-%S"))
     fname_eval = os.path.join(fname_log, 'eval.csv')
     fname_adapt = os.path.join(fname_log, 'adapt.csv')
 
@@ -748,8 +748,8 @@ if __name__ == "__main__":
                 # for pearl env, tidx == idx
                 env.reset_task(tidx) # tidx here is an id
 
-            data = rollouts.run(update_iter, keep_burning = True, task_id=tidx,
-                                early_leave = args.max_path_length/4) # data collection is way important now
+            data = rollouts.run(update_iter, keep_burning=True, task_id=tidx,
+                                early_leave=args.max_path_length/4)  # data collection is way important now
             timesteps_since_eval += data['episode_timesteps']
             update_iter += data['episode_timesteps']
             epinfobuf.extend(data['epinfos'])
@@ -778,14 +778,10 @@ if __name__ == "__main__":
         if args.enable_promp_envs:
             train_tasks = env.sample_tasks(args.n_train_tasks)
             train_indices = train_tasks.copy()
-
-        else:
-            #shuffle the ind
+        else:  # shuffle the ind
             train_indices = np.random.choice(train_tasks, len(train_tasks))
 
         for tidx in train_indices:
-
-
             ######
             # update learning rate
             ######
@@ -818,7 +814,7 @@ if __name__ == "__main__":
             #######
             nseconds = time.time() - tstart
             # Calculate the fps (frame per second)
-            fps = int(( update_iter) / nseconds)
+            fps = int((update_iter) / nseconds)
 
             if ((episode_num % args.log_interval == 0 or episode_num % len(train_tasks)/2 == 0) or episode_num == 1 ):
                 logger.record_tabular("nupdates", update_iter)
@@ -944,7 +940,6 @@ if __name__ == "__main__":
     # Eval subset of train tasks
     if args.enable_promp_envs == False:
         train_subset = np.random.choice(train_tasks, len(eval_tasks))
-
     else:
         train_subset = None
 
