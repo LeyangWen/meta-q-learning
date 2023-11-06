@@ -1,0 +1,71 @@
+Logging to ./log_dir/kuka-human-response_mql_empty/2023-11-05_19-00-20
+--------------------------------
+| actor_loss        | -0.407   |
+| adjusted_no_steps | 45       |
+| buffer_size       | 14356    |
+| critic_loss       | 0.0773   |
+| episode_num       | 806      |
+| episode_reward    | 168      |
+| eplenmean         | 45       |
+| eprewmean         | 45       |
+| fps               | 450      |
+| nupdates          | 14356    |
+| sampling_loop     | 1        |
+| total_timesteps   | 14356    |
+--------------------------------
+--------------------------------
+| actor_loss        | -1.09    |
+| adjusted_no_steps | 14       |
+| buffer_size       | 16267    |
+| critic_loss       | 0.0195   |
+| episode_num       | 871      |
+| episode_reward    | 12       |
+| eplenmean         | 14.8     |
+| eprewmean         | 14.8     |
+| fps               | 259      |
+| nupdates          | 16267    |
+| sampling_loop     | 2        |
+| total_timesteps   | 16267    |
+--------------------------------
+--------------------------------
+| actor_loss        | -1.43    |
+| adjusted_no_steps | 18       |
+| buffer_size       | 17297    |
+| critic_loss       | 0.0478   |
+| episode_num       | 936      |
+| episode_reward    | 21       |
+| eplenmean         | 18.4     |
+| eprewmean         | 18.4     |
+| fps               | 256      |
+| nupdates          | 17297    |
+| sampling_loop     | 3        |
+| total_timesteps   | 17297    |
+--------------------------------
+--------------------------------
+| actor_loss        | -1.8     |
+| adjusted_no_steps | 12       |
+| buffer_size       | 18214    |
+| critic_loss       | 0.0911   |
+| episode_num       | 1001     |
+| episode_reward    | 12       |
+| eplenmean         | 12       |
+| eprewmean         | 12       |
+| fps               | 253      |
+| nupdates          | 18214    |
+| sampling_loop     | 4        |
+| total_timesteps   | 18214    |
+--------------------------------
+--------------------------------
+| actor_loss        | -2.34    |
+| adjusted_no_steps | 17       |
+| buffer_size       | 19219    |
+| critic_loss       | 0.178    |
+| episode_num       | 1066     |
+| episode_reward    | 12       |
+| eplenmean         | 17.2     |
+| eprewmean         | 17.2     |
+| fps               | 251      |
+| nupdates          | 19219    |
+| sampling_loop     | 5        |
+| total_timesteps   | 19219    |
+--------------------------------
