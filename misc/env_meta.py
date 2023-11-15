@@ -45,13 +45,13 @@ def build_HRC_envs(seed,
     '''
 
     if env_name == 'continuous_mountain_car':
-        import rand_param_envs.gym.envs.classic_control.continuous_mountain_car as continuous_mountain_car
         env_params = {
                   'n_tasks': params.n_tasks,
                   'randomize_tasks': params.randomize_tasks
                  }
+        import rand_param_envs.gym.envs.classic_control.continuous_mountain_car as continuous_mountain_car
         env = continuous_mountain_car.Continuous_MountainCarEnv_Rand(**env_params)
-    elif env_name == 'sparse-point-robot':
+    elif env_name == 'sparse-point-robot':  # not working
         env_params = {
                   'n_tasks': params.n_tasks,
                   'randomize_tasks': params.randomize_tasks

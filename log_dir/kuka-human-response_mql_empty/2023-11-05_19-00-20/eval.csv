@@ -1,5 +1,0 @@
-nupdates,total_timesteps,eval_eprewmean,train_eprewmean,episode_num,sampling_loop
-0,0,15.1,0,0,0
-13005,13005,32.55,0,776,1
-15138,15138,53.65,0,826,1
-20056,20056,39.55,0,1106,6

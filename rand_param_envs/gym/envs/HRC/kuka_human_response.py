@@ -7,20 +7,18 @@ import os
 
 
 class KukaHumanResponse(gym.Env):
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=True):
         '''
         :param max_steps: maximum number of steps
         :param verbose: whether to print out information
         Currently relies on the Kuka..._Rand class to load the human response data
         '''
         super(KukaHumanResponse, self).__init__()
-        self.verbose = verbose
-        self.continous_change_speed = 3
         # Define action and observation spaces
         # Action: 2 continuous values, 3 binary values, merge into one continuous box
         # first two elements (movement speed change; arm swing speed change), between -1 and 1
         # three random binary elements (proximity, level of autonomy, leader of collaboration)
-        self.action_space = spaces.Box(low=-1, high=1, shape=(3,))
+        self.action_space = spaces.Box(low=-1, high=1, shape=(5,))
         # Observation: 4 continuous values, 2 binary values, merge into one continuous box
         # first two elements human response (valence, arousal), between -inf and inf
         # second two elements (movement speed; arm swing speed) between 27.8, 23.8 max speed and 143.8, 109.1
@@ -33,11 +31,14 @@ class KukaHumanResponse(gym.Env):
                                             high=np.array([human_res_high_bnd, human_res_high_bnd, move_spd_high_bnd, arm_spd_high_bnd, high_binary, high_binary, high_binary])
                                             )
         # todo: add to init input after testing
-        self.max_steps = 1000
+        self.verbose = verbose
+        self.continuous_change_speed = 15
+        self.half_break_time = 10  # min #todo: maybe make this smaller 90% break time is very long
+        self.max_steps = 1000  # not used
         self.max_brick_time = 4*60  # 4 hour
-        self.learning_steps = 20  # can not reach don condition
+        self.learning_steps = 10  # can not reach don condition
         self._seed()
-        self.reset()
+        self._reset()
 
     def _seed(self, seed=None):  # todo: not really integrated at the moment
         self.np_random, seed = seeding.np_random(seed)
@@ -54,13 +55,13 @@ class KukaHumanResponse(gym.Env):
             currStateMat = np.array(
                 [1, this_state[0] ** 2, this_state[0], this_state[1] ** 2, this_state[1], this_state[2],
                  this_state[3], this_state[4], 1])
-            valence = np.matmul(currStateMat, self.val_coeffs) * self.val_std + self.val_mean
-            arousal = np.matmul(currStateMat, self.aro_coeffs) * self.aro_std + self.aro_mean
+            valence = np.matmul(currStateMat, self.val_coeffs) #* self.val_std + self.val_mean
+            arousal = np.matmul(currStateMat, self.aro_coeffs) #* self.aro_std + self.aro_mean
             return np.array([valence, arousal])
         else:
             raise NotImplementedError
 
-    def reset(self):
+    def _reset(self):
         self.state = self.observation_space.sample()
         self.state[:2] = self.compute_human_response(self.state)
 
@@ -68,6 +69,8 @@ class KukaHumanResponse(gym.Env):
         self.steps_taken = 0
         self.total_time = 0
         self.total_brick = 0
+        self.total_break = 0
+        self.total_break_time = 0  # min
         return np.array(self.state)
 
     def compute_reward(self):
@@ -91,9 +94,17 @@ class KukaHumanResponse(gym.Env):
                 # else:
                 #   aWeights = [0.001, 0.0001, 0]
                 #   # leyang changed to very small until after learning steps
-        elif done_option == 3:  # force 5 min break if we fail to maintain good human response, done at max brick time
-            if valence < self.val_mean or arousal < self.aro_mean:
-                self.total_time += 5 # 5 min break
+        elif done_option == 3:  # force n min break if we fail to maintain good human response, done at max brick time
+            # todo: this accepts normalized valence and arousal, need to change to raw valence and arousal
+            if steps > self.learning_steps:
+                sig_break = lambda x: -1 / (1 + np.exp(-x * 2)) + 1
+                force_break_time = self.half_break_time * (sig_break(valence) + sig_break(arousal))
+                self.total_time += force_break_time
+                self.total_break_time += force_break_time
+                if valence < 0 or arousal < 0:
+                    self.total_break += 1
+                    # with np.printoptions(precision=2, suppress=True):
+                    #     print(f"@@@@@ Force Break #{self.total_break}:{force_break_time}, total time: {self.total_time:.2f}, brick: {self.total_brick}, sub_id: {self.sub_id}, state: {self.state}")
 
         reward_from_human_response = (valence - self.val_mean) + (arousal - self.aro_mean)
 
@@ -114,7 +125,7 @@ class KukaHumanResponse(gym.Env):
         self.total_time += travelTime / 60
         self.total_brick += 1
 
-        prod_reward_options = 2
+        prod_reward_options = 1
         if prod_reward_options == 0:  # reward by current brick productivity (speed)
             reward_from_prod = 3600 / travelTime
         elif prod_reward_options == 1:  # cumulative brick productivity
@@ -128,7 +139,7 @@ class KukaHumanResponse(gym.Env):
         aReward = [reward_from_human_response, reward_from_prod, reward_from_steps]
         weighted_reward = np.matmul(aReward, aWeights)
 
-        if self.steps_taken % 10 == 1 and self.verbose:  # change to True to print output
+        if self.steps_taken % 10 == 1 and self.verbose and False:  # change to True to print output
             print(f"Step: {self.steps_taken}")
             print(f"State: {state}")
             print(
@@ -139,14 +150,14 @@ class KukaHumanResponse(gym.Env):
             print(f"Weighted Reward: {weighted_reward:.2f}")
         return weighted_reward
 
-    def step(self, action):
+    def _step(self, action):
         self.action = action
         self.steps_taken += 1
         movement_speed, arm_swing_speed = self.state[2:4]
 
         # update movement speed and arm swing speed
-        movement_speed += self.action[0] * self.continous_change_speed
-        arm_swing_speed += self.action[1] * self.continous_change_speed
+        movement_speed += self.action[0] * self.continuous_change_speed
+        arm_swing_speed += self.action[1] * self.continuous_change_speed
         # check out of bnd
         movement_speed = min(max(movement_speed, self.observation_space.low[2]), self.observation_space.high[2])
         arm_swing_speed = min(max(arm_swing_speed, self.observation_space.low[3]), self.observation_space.high[3])
@@ -162,9 +173,17 @@ class KukaHumanResponse(gym.Env):
         done = self.done
         if self.total_time > self.max_brick_time:
             done = True
+            if self.verbose:
+                print(f"@@@@@@@@@@@@@@@@@@@ sub #{self.sub_id} reached max time, summary @@@@@@@@@@@@@@@@@@@")
+                print(f"Total time: {self.total_time:.2f}, brick: {self.total_brick}, break: {self.total_break} - {self.total_break_time / self.total_time * 100:.1f}%")
+                with np.printoptions(precision=2, suppress=True):
+                    print(f"State: human response: {self.state[:2]}, continuous: {self.state[2:4]}, binary: {self.state[4:]}")
+                    print(f"Action: continuous: {self.action[:2]}, binary: {self.action[2:]}")
+                print()
+
         return self.state, reward, done, {}
 
-    def render(self, mode='human'):
+    def _render(self, mode='human'):
         print(f"Step: {self.steps_taken}, State: {self.state}, "
               f"Action,{self.action}, Done: {self.done}, "
               f"Reward: {self.compute_reward()}")
@@ -187,8 +206,16 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         data = np.loadtxt(file, delimiter=',')
         return data[index, :9], data[index, 9], data[index, 10]
 
+    def step(self, action):
+        return self._step(action)
+
+    def reset(self):
+        return self._reset()
+
     def sample_tasks(self, num_tasks):
         BASE_FOLDER = 'rand_param_envs/gym/envs/HRC/human_response/'
+        if __name__ == '__main__':
+            BASE_FOLDER = 'human_response/'
         valence_file = os.path.join(BASE_FOLDER, 'valence_merge.csv')
         arousal_file = os.path.join(BASE_FOLDER, 'arousal_merge.csv')
         tasks = []
@@ -205,7 +232,7 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
 
     def reset_task(self, idx):
         self.load_from_task(self.tasks[idx])
-        self.reset()
+        self._reset()
 
     def load_from_task(self, task):
         self._task = task
@@ -216,5 +243,32 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.aro_coeffs = task['aro_coeffs']
         self.aro_mean = task['aro_mean']
         self.aro_std = task['aro_std']
+
+
+if __name__ == '__main__':
+    env = KukaHumanResponse_Rand()
+    env.reset()
+    bin = [0, 1]
+    bin_map = [(0,0, a, b, x, y, z) for a in bin for b in bin for x in bin for y in bin for z in bin]
+    move_spd_low_bnd, move_spd_high_bnd = [27.8, 143.8]
+    arm_spd_low_bnd, arm_spd_high_bnd = [23.8, 109.1]
+
+    for subject_id in range(18):
+        print('------------------', subject_id, '------------------')
+        env.reset_task(subject_id)
+        for i in range(2 ** 5):
+            state = bin_map[i]
+            state = np.array(state)
+            state[0+2] = state[0+2]*(move_spd_high_bnd - move_spd_low_bnd) + move_spd_low_bnd
+            state[1+2] = state[1+2]*(arm_spd_high_bnd - arm_spd_low_bnd) + arm_spd_low_bnd
+            state[2+2] = state[2+2] * 2 - 1
+            state[3+2] = state[3+2] * 2 - 1
+            state[4+2] = state[4+2] * 2 - 1
+
+
+            a, v = env.compute_human_response(state)
+            if a >0 and v >0:
+                print(f'[{i}] subject_id: {subject_id}, state_id: {bin_map[i][2:]}, valence: {v:.2f}, arousal: {a:.2f}')
+
 
 
