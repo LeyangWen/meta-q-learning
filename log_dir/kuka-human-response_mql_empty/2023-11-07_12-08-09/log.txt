@@ -1,0 +1,15 @@
+Logging to ./log_dir/kuka-human-response_mql_empty/2023-11-07_12-08-09
+--------------------------------
+| actor_loss        | -4.74    |
+| adjusted_no_steps | 1000     |
+| buffer_size       | 100237   |
+| critic_loss       | 0.923    |
+| episode_num       | 3757     |
+| episode_reward    | 22       |
+| eplenmean         | 22       |
+| eprewmean         | 22       |
+| fps               | 617      |
+| nupdates          | 100237   |
+| sampling_loop     | 1        |
+| total_timesteps   | 100237   |
+--------------------------------

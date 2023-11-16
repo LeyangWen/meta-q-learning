@@ -1,0 +1,2 @@
+actor_loss,adjusted_no_steps,buffer_size,critic_loss,episode_num,episode_reward,eplenmean,eprewmean,fps,nupdates,sampling_loop,total_timesteps
+-4.740462410926819,1000,100237,0.9229980773702264,3757,22.0,22.0,22.0,617,100237,1,100237
