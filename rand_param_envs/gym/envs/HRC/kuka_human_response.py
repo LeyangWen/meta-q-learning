@@ -33,7 +33,7 @@ class KukaHumanResponse(gym.Env):
         # todo: add to init input after testing
         self.verbose = verbose
         self.continuous_change_speed = 15
-        self.half_break_time = 10  # min #todo: maybe make this smaller 90% break time is very long
+        self.half_break_time = 2 # min #todo: maybe make this smaller 90% break time is very long
         self.max_steps = 1000  # not used
         self.max_brick_time = 4*60  # 4 hour
         self.learning_steps = 10  # can not reach don condition
@@ -83,6 +83,7 @@ class KukaHumanResponse(gym.Env):
 
         aWeights = [0, 1, 0]
         done_option = 3
+        force_break_time = 0
         if done_option == 1:  # big reward after reached goal and end
             if valence > self.val_mean and arousal > self.aro_mean:
                 reward_from_human_response = 1000
@@ -122,12 +123,13 @@ class KukaHumanResponse(gym.Env):
 
         # bricks per hour
         #
-        self.total_time += travelTime / 60
+        travelTime = travelTime/60
+        self.total_time += travelTime
         self.total_brick += 1
 
-        prod_reward_options = 1
-        if prod_reward_options == 0:  # reward by current brick productivity (speed)
-            reward_from_prod = 3600 / travelTime
+        prod_reward_options = 0
+        if prod_reward_options == 0:  # reward by current brick productivity (speed) brick/hour
+            reward_from_prod = 60 / (travelTime+force_break_time)
         elif prod_reward_options == 1:  # cumulative brick productivity
             reward_from_prod = self.total_brick / self.total_time
         elif prod_reward_options == 2:  # +1 per brick, end by max time
