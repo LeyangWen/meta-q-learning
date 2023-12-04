@@ -36,7 +36,9 @@ class KukaHumanResponse(gym.Env):
         self.half_break_time = 2 # min #todo: maybe make this smaller 90% break time is very long
         self.max_steps = 1000  # not used
         self.max_brick_time = 4*60  # 4 hour
-        self.learning_steps = 10  # can not reach don condition
+        self.learning_steps = 50  # can not reach done condition
+        self.done_option = 5
+        self.prod_reward_options = 3
         self._seed()
         self._reset()
 
@@ -44,17 +46,51 @@ class KukaHumanResponse(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+    @staticmethod
+    def calculate_traveltime(movement_speed, arm_swing_speed, proximity, level_of_autonomy, leader_of_collaboration):
+        """
+        :return: travel time in min
+        """
+        # t = s / v   (v = s / t)
+        MoveDistance = 305  # cm
+        ArmDistance = 2 * 60  # cm
+        travelTime = 2 * (ArmDistance / arm_swing_speed + MoveDistance / movement_speed)
+        if proximity > 0:
+            travelTime += 3
+        if level_of_autonomy > 0:
+            travelTime += 2
+        if leader_of_collaboration > 0:
+            travelTime += 1
+        return travelTime / 60  # min
+
+    @staticmethod
+    def calculate_productivity(travelTime):
+        """
+        :return: bricks per hour
+        """
+        return 60 / travelTime
+
     def compute_human_response(self, curr_state, simulated=True):
-        ''' compute human response from current state
-        :param curr_state: {}
+        """ compute human response from current state
+        :param curr_state: [valence, arousal, movement_speed, arm_swing_speed, proximity, level_of_autonomy, leader_of_collaboration], optional first two elements
         :param simulated: whether to use simulated human response in csv file
         :return: np.array(valence, arousal)
-        '''
+        """
         if simulated:
-            this_state = curr_state[2:]
+            if len(curr_state) == 7:
+                robot_state = curr_state[2:].copy()  # discard first two elements, valence and arousal
+            elif len(curr_state) == 5:
+                robot_state = curr_state.copy()
+            else:
+                raise ValueError("curr_state should be length 5 or 7")
+
+            if not np.all(np.abs(robot_state[2:]) == 1):   # check if last three is binary -1, 1
+                raise ValueError("Last three elements of robot state should be binary -1 or 1 "
+                                 f"got {robot_state} instead")
+            robot_state[2:] = (robot_state[2:] + 1) / 2   # convert -1, 1 to 0, 1
             currStateMat = np.array(
-                [1, this_state[0] ** 2, this_state[0], this_state[1] ** 2, this_state[1], this_state[2],
-                 this_state[3], this_state[4], 1])
+                [1, robot_state[0] ** 2, robot_state[0], robot_state[1] ** 2, robot_state[1], robot_state[2],
+                 robot_state[3], robot_state[4], 1])
             valence = np.matmul(currStateMat, self.val_coeffs) #* self.val_std + self.val_mean
             arousal = np.matmul(currStateMat, self.aro_coeffs) #* self.aro_std + self.aro_mean
             return np.array([valence, arousal])
@@ -63,6 +99,8 @@ class KukaHumanResponse(gym.Env):
 
     def _reset(self):
         self.state = self.observation_space.sample()
+        # convert last three to binary -1, 1
+        self.state[4:] = np.sign(self.state[4:])
         self.state[:2] = self.compute_human_response(self.state)
 
         self.done = False
@@ -82,7 +120,7 @@ class KukaHumanResponse(gym.Env):
         proximity, level_of_autonomy, leader_of_collaboration = state[4:]
 
         aWeights = [0, 1, 0]
-        done_option = 3
+        done_option = self.done_option
         force_break_time = 0
         if done_option == 1:  # big reward after reached goal and end
             if valence > self.val_mean and arousal > self.aro_mean:
@@ -106,34 +144,51 @@ class KukaHumanResponse(gym.Env):
                     self.total_break += 1
                     # with np.printoptions(precision=2, suppress=True):
                     #     print(f"@@@@@ Force Break #{self.total_break}:{force_break_time}, total time: {self.total_time:.2f}, brick: {self.total_brick}, sub_id: {self.sub_id}, state: {self.state}")
+        elif done_option == 4:  # stop after the learning steps
+            if steps > self.learning_steps:
+                self.done = True
+                valence_positive = valence > 0  # todo: this accepts normalized valence and arousal, need to change to raw valence and arousal
+                arousal_positive = arousal > 0
+                hr_factor_half = (int(valence_positive) + int(arousal_positive))/2
+                hr_factor = arousal_positive and valence_positive
+            else:
+                hr_factor_half = 0
+                hr_factor = 0
+        elif done_option == 5:  # stop after the learning steps
+            valence_positive = valence > 0  # todo: this accepts normalized valence and arousal, need to change to raw valence and arousal
+            arousal_positive = arousal > 0
+            hr_factor_half = (int(valence_positive) + int(arousal_positive)) / 2
+            hr_factor = arousal_positive and valence_positive
+            if steps > self.learning_steps:
+                self.done = True
+            else:
+                hr_factor_half = hr_factor_half/self.learning_steps
+                hr_factor = hr_factor/self.learning_steps
 
-        reward_from_human_response = (valence - self.val_mean) + (arousal - self.aro_mean)
+        reward_from_human_response = (valence - self.val_mean) + (arousal - self.aro_mean)  # check if this need normalization
 
         # reward from prod
-        # t = s / v   (v = s / t)
-        MoveDistance = 305  # cm
-        ArmDistance = 2 * 60  # cm
-        travelTime = 2 * (ArmDistance / arm_swing_speed + MoveDistance / movement_speed)
-        if proximity > 0:
-            travelTime += 3
-        if level_of_autonomy > 0:
-            travelTime += 2
-        if leader_of_collaboration > 0:
-            travelTime += 1
-
+        travelTime = self.calculate_traveltime(movement_speed, arm_swing_speed, proximity, level_of_autonomy, leader_of_collaboration)
         # bricks per hour
         #
-        travelTime = travelTime/60
+
+        self.travelTime = travelTime
         self.total_time += travelTime
         self.total_brick += 1
 
-        prod_reward_options = 0
+        prod_reward_options = self.prod_reward_options
         if prod_reward_options == 0:  # reward by current brick productivity (speed) brick/hour
             reward_from_prod = 60 / (travelTime+force_break_time)
         elif prod_reward_options == 1:  # cumulative brick productivity
             reward_from_prod = self.total_brick / self.total_time
         elif prod_reward_options == 2:  # +1 per brick, end by max time
             reward_from_prod = 1
+        elif prod_reward_options == 3:  # only reward based on the last step
+            self.hr_factor = hr_factor
+            reward_from_prod = self.hr_factor * 60 / (travelTime)
+        elif prod_reward_options == 4:  # only reward based on the last step
+            self.hr_factor = hr_factor_half
+            reward_from_prod = self.hr_factor * 60 / (travelTime)
 
         # reward from steps
         reward_from_steps = 0.1 * steps
@@ -151,6 +206,16 @@ class KukaHumanResponse(gym.Env):
                 f"Reward from Steps: {reward_from_steps:.2f}*{aWeights[2]} = {reward_from_steps * aWeights[2]:.2f}")
             print(f"Weighted Reward: {weighted_reward:.2f}")
         return weighted_reward
+
+
+    def compute_prod_reward(self, curr_state):
+        """ compute productivity reward from current state
+        :param curr_state:
+        :return: productivity reward
+        """
+        travelTime = self.calculate_traveltime(curr_state[2], curr_state[3], curr_state[4], curr_state[5], curr_state[6])
+        productivity = self.calculate_productivity(travelTime)
+        return productivity
 
     def _step(self, action):
         self.action = action
@@ -173,19 +238,28 @@ class KukaHumanResponse(gym.Env):
 
         reward = self.compute_reward()
         done = self.done
-        if self.total_time > self.max_brick_time:
-            done = True
-            if self.verbose:
-                print(f"@@@@@@@@@@@@@@@@@@@ sub #{self.sub_id} reached max time, summary @@@@@@@@@@@@@@@@@@@")
-                print(f"Total time: {self.total_time:.2f}, brick: {self.total_brick}, break: {self.total_break} - {self.total_break_time / self.total_time * 100:.1f}%")
-                with np.printoptions(precision=2, suppress=True):
-                    print(f"State: human response: {self.state[:2]}, continuous: {self.state[2:4]}, binary: {self.state[4:]}")
-                    print(f"Action: continuous: {self.action[:2]}, binary: {self.action[2:]}")
-                print()
+        # if self.total_time > self.max_brick_time:
+        #     done = True
+        #     if self.verbose:
+        #         print(f"@@@@@@@@@@@@@@@@@@@ sub #{self.sub_id} reached max time, summary @@@@@@@@@@@@@@@@@@@")
+        #         print(f"Total time: {self.total_time:.2f}, brick: {self.total_brick}, break: {self.total_break} - {self.total_break_time / self.total_time * 100:.1f}%")
+        #         with np.printoptions(precision=2, suppress=True):
+        #             print(f"State: human response: {self.state[:2]}, continuous: {self.state[2:4]}, binary: {self.state[4:]}")
+        #             print(f"Action: continuous: {self.action[:2]}, binary: {self.action[2:]}")
+        #         print()
+
+        if done and self.verbose:
+            print(f"@@@@@@@@@@@@@@@@@@@ sub #{self.sub_id} finished learning after {self.learning_steps}, summary @@@@@@@@@@@@@@@@@@@")
+            prod = 60 / (self.travelTime)
+            print(f"Productivity: {prod:.1f} brick/hour, HR factor: {self.hr_factor}, reward: {reward:.1f}")
+            with np.printoptions(precision=2, suppress=True):
+                print(f"State: human response: {self.state[:2]}, continuous: {self.state[2:4]}, binary: {self.state[4:]}")
+                print(f"Action: continuous: {self.action[:2]}, binary: {self.action[2:]}")
+            print()
 
         return self.state, reward, done, {}
 
-    def _render(self, mode='human'):
+    def _render(self):
         print(f"Step: {self.steps_taken}, State: {self.state}, "
               f"Action,{self.action}, Done: {self.done}, "
               f"Reward: {self.compute_reward()}")
@@ -216,8 +290,6 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
 
     def sample_tasks(self, num_tasks):
         BASE_FOLDER = 'rand_param_envs/gym/envs/HRC/human_response/'
-        if __name__ == '__main__':
-            BASE_FOLDER = 'human_response/'
         valence_file = os.path.join(BASE_FOLDER, 'valence_merge.csv')
         arousal_file = os.path.join(BASE_FOLDER, 'arousal_merge.csv')
         tasks = []
@@ -247,30 +319,38 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.aro_std = task['aro_std']
 
 
+
 if __name__ == '__main__':
     env = KukaHumanResponse_Rand()
     env.reset()
-    bin = [0, 1]
-    bin_map = [(0,0, a, b, x, y, z) for a in bin for b in bin for x in bin for y in bin for z in bin]
+    continuous_bin = np.arange(0, 1.01, 0.01)
+    binary_bin = [0, 1]
+    bin_map = [(0,0, a, b, x, y, z) for a in continuous_bin for b in continuous_bin for x in binary_bin for y in binary_bin for z in binary_bin]
     move_spd_low_bnd, move_spd_high_bnd = [27.8, 143.8]
     arm_spd_low_bnd, arm_spd_high_bnd = [23.8, 109.1]
 
     for subject_id in range(18):
         print('------------------', subject_id, '------------------')
+        largest_productivity = 0
+        largest_state = None
+        largest_av = None
         env.reset_task(subject_id)
-        for i in range(2 ** 5):
+        for i in range(len(bin_map)):
             state = bin_map[i]
             state = np.array(state)
             state[0+2] = state[0+2]*(move_spd_high_bnd - move_spd_low_bnd) + move_spd_low_bnd
             state[1+2] = state[1+2]*(arm_spd_high_bnd - arm_spd_low_bnd) + arm_spd_low_bnd
-            state[2+2] = state[2+2] * 2 - 1
-            state[3+2] = state[3+2] * 2 - 1
-            state[4+2] = state[4+2] * 2 - 1
-
-
+            state[2+2] = state[2+2]
+            state[3+2] = state[3+2]
+            state[4+2] = state[4+2]
+            traveltime = env.calculate_traveltime(state[2], state[3], state[4], state[5], state[6])
+            productivity = env.calculate_productivity(traveltime)
             a, v = env.compute_human_response(state)
             if a >0 and v >0:
-                print(f'[{i}] subject_id: {subject_id}, state_id: {bin_map[i][2:]}, valence: {v:.2f}, arousal: {a:.2f}')
-
+                if productivity > largest_productivity:
+                    largest_productivity = productivity
+                    largest_state = state
+                    largest_av = (a, v)
+        print(f"largest productivity: {largest_productivity}, state: {largest_state}, aro-var: {largest_av}")
 
 

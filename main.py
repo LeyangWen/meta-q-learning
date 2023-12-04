@@ -16,11 +16,11 @@ parser = argparse.ArgumentParser()
 
 # Optim params
 parser.add_argument('--lr', type=float, default=0.0003, help = 'Learning rate')
-parser.add_argument('--replay_size', type=int, default = 1e6, help ='Replay buffer size int(1e6)')
+parser.add_argument('--replay_size', type=int, default = 2e5, help ='Replay buffer size int(1e6)')
 parser.add_argument('--ptau', type=float, default=0.005 , help = 'Interpolation factor in polyak averaging')
 parser.add_argument('--gamma', type=float, default=0.99, help = 'Discount factor [0,1]')
 parser.add_argument("--burn_in", default=1e5, type=int, help = 'How many time steps purely random policy is run for')
-parser.add_argument("--total_timesteps", default=1e6, type=float, help = 'Total number of timesteps to train on')
+parser.add_argument("--total_timesteps", default=4e5, type=float, help = 'Total number of timesteps to train on')
 parser.add_argument("--expl_noise", default=0.2, type=float, help='Std of Gaussian exploration noise')
 parser.add_argument("--batch_size", default=512, type=int, help = 'Batch size for both actor and critic')
 parser.add_argument("--policy_noise", default=0.3, type=float, help =' Noise added to target policy during critic update')
