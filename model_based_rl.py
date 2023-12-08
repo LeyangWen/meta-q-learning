@@ -7,6 +7,7 @@ from rand_param_envs.gym.envs.HRC.kuka_human_response import KukaHumanResponse, 
 import argparse
 import wandb
 
+
 class HumanResponseModel(torch.nn.Module):
     """
     This is a nural network model to predict human response (valance and arousal) based on the HRC robot state
@@ -33,7 +34,7 @@ class HumanResponseModel(torch.nn.Module):
         x = torch.nn.functional.relu(x)
         x = self.dropout2(x)
         x = self.linear3(x)
-        x = torch.nn.functional.tanh(x) * 5
+        x = torch.nn.functional.tanh(x) * 10
         return x
 
 
@@ -102,9 +103,10 @@ def grid_search(args, env, model, GT=False):
     return best_robot_state, best_reward, have_result
 
 
-def train_step(args, model, data_buffer, optimizer, loss_function, batch_size=64):
+def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Sample data points from the buffer
     human_responses, robot_states = data_buffer.sample(batch_size)
+    # todo: regularization here
 
     # Convert numpy arrays to PyTorch tensors and move to args.device
     robot_states = torch.from_numpy(robot_states).float().to(args.device)
@@ -146,11 +148,11 @@ def random_explore(args, env):
 def parse_args():
     parser = argparse.ArgumentParser(description='Human Response Model')
     parser.add_argument('--device', default='cuda', help='device, cpu or cuda')
-    parser.add_argument('--grid_search_num', default=100, type=int, help='number of grid search, positive integer')
+    parser.add_argument('--grid_search_num', default=200, type=int, help='number of grid search, positive integer')
     parser.add_argument('--random_explore_num', default=32, type=int, help='number of random explore, positive integer')
     parser.add_argument('--train_batch_size', default=32, type=int, help='batch size for training, positive integer')
-    parser.add_argument('--train_step_per_episode', default=1024, type=int, help='number of training steps per episode, positive integer')
-    parser.add_argument('--episode_num', default=512, type=int, help='batch size for training, positive integer')
+    parser.add_argument('--train_step_per_episode', default=10, type=int, help='number of training steps per episode, positive integer')
+    parser.add_argument('--episode_num', default=64, type=int, help='batch size for training, positive integer')
     parser.add_argument('--exploration_rate', default=0.5, type=float, help='exploration rate, float between 0 and 1')
     parser.add_argument('--exploration_decay_rate', default=0.99, type=float, help='exploration decay rate, float between 0 and 1')
     parser.add_argument('--learning_rate', default=0.001, type=float, help='learning rate, float between 0 and 1')
@@ -164,7 +166,7 @@ if __name__ == '__main__':
     args = parse_args()
     args = choose_device(args)
 
-    wandb.init(project="HRC_model_based_rl", name="Test1-32rand-512total", config=vars(args))   # Initialize a new run
+    wandb.init(project="HRC_model_based_rl", name="Test2-32rand-512total-morePlot", config=vars(args))   # Initialize a new run
     wandb.define_metric("train/episode")  # define our custom x axis metric
     wandb.define_metric("*", step_metric="train/episode")  # set all other train/ metrics to use this step
 
@@ -201,21 +203,29 @@ if __name__ == '__main__':
             data_buffer.add(robot_state, human_response)
         print(f"Buffer filled with {args.random_explore_num} random data points")
 
+        exploit_total_num = 0
+        exploit_success_num = 0
         for i in range(args.episode_num):  # run 1000 episodes of HRC interaction
             log_dict = {}
             log_dict["train/episode"] = i  # our custom x axis metric
             if np.random.random() > exploration_rate:
                 robot_state, reward, have_result = grid_search(args, env, model)
                 if have_result:
+                    exploit_total_num += 1
                     human_response = env.compute_human_response(robot_state)
                     good_human_response = True if (human_response[0] > 0 and human_response[1] > 0) else False
                     with np.printoptions(precision=2):
                         log_dict[f"train/Subject({env.sub_id})/Good human response"] = float(good_human_response*1.0)
                         if good_human_response:
+                            exploit_success_num += 1
                             print(f"{i}, good HR: {good_human_response}, productivity: {reward:.2f}, HR: {human_response}, robot state: {robot_state}")
                             log_dict[f"train/Subject({env.sub_id})/Productivity_max({GT_best_reward:.0f}bk\hr)"] = reward
+                            log_dict[
+                                f"train/Subject({env.sub_id})/Productivity_max({GT_best_reward:.0f}bk\hr)_all"] = reward
                         else:
-                            log_dict[f"train/Subject({env.sub_id})/Productivity_max({GT_best_reward:.0f}bk\hr)"] = 0
+                            log_dict[f"train/Subject({env.sub_id})/Productivity_max({GT_best_reward:.0f}bk\hr)_all"] = 0
+                        log_dict[f"train/Subject({env.sub_id})/Good human response %)"] = float(
+                            exploit_success_num / exploit_total_num)
                 else:  # random point since grid search got no results with positive valance and arousal
                     human_response, robot_state = random_explore(args, env)
                     # print(f"{i}th episode, random explore because no grid result")

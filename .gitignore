@@ -5,3 +5,4 @@ __pycache__
 
 
 /wandb/
+/log_dir/

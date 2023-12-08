@@ -4,6 +4,7 @@ from rand_param_envs.gym import spaces
 from rand_param_envs.gym.utils import seeding
 import numpy as np
 import os
+from deprecated import deprecated
 
 
 class KukaHumanResponse(gym.Env):
@@ -55,12 +56,13 @@ class KukaHumanResponse(gym.Env):
         MoveDistance = 305  # cm
         ArmDistance = 2 * 60  # cm
         travelTime = 2 * (ArmDistance / arm_swing_speed + MoveDistance / movement_speed)
-        if proximity > 0:
-            travelTime += 3
-        if level_of_autonomy > 0:
+        if proximity > 0:  # +2s if positive
             travelTime += 2
-        if leader_of_collaboration > 0:
+        if level_of_autonomy > 0:  # +3s if positive
+            travelTime += 3
+        if leader_of_collaboration < 0:  # +1s if negative
             travelTime += 1
+        travelTime += 5  # 5s for brick placement
         return travelTime / 60  # min
 
     @staticmethod
@@ -91,8 +93,8 @@ class KukaHumanResponse(gym.Env):
             currStateMat = np.array(
                 [1, robot_state[0] ** 2, robot_state[0], robot_state[1] ** 2, robot_state[1], robot_state[2],
                  robot_state[3], robot_state[4], 1])
-            valence = np.matmul(currStateMat, self.val_coeffs) #* self.val_std + self.val_mean
-            arousal = np.matmul(currStateMat, self.aro_coeffs) #* self.aro_std + self.aro_mean
+            valence = np.matmul(currStateMat, self.val_coeffs) # * self.val_std + self.val_mean  # todo: normalize
+            arousal = np.matmul(currStateMat, self.aro_coeffs) # * self.aro_std + self.aro_mean
             return np.array([valence, arousal])
         else:
             raise NotImplementedError
@@ -111,6 +113,7 @@ class KukaHumanResponse(gym.Env):
         self.total_break_time = 0  # min
         return np.array(self.state)
 
+    @deprecated
     def compute_reward(self):
         state = self.state
         steps = self.steps_taken
@@ -207,7 +210,7 @@ class KukaHumanResponse(gym.Env):
             print(f"Weighted Reward: {weighted_reward:.2f}")
         return weighted_reward
 
-
+    @deprecated
     def compute_prod_reward(self, curr_state):
         """ compute productivity reward from current state
         :param curr_state:
@@ -217,6 +220,7 @@ class KukaHumanResponse(gym.Env):
         productivity = self.calculate_productivity(travelTime)
         return productivity
 
+    @deprecated
     def _step(self, action):
         self.action = action
         self.steps_taken += 1
