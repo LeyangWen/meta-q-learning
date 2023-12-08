@@ -1,107 +1,13 @@
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 import numpy as np
-from rand_param_envs.gym.envs.HRC.kuka_human_response import KukaHumanResponse, KukaHumanResponse_Rand
 import argparse
 import wandb
 
-
-class HumanResponseModel(torch.nn.Module):
-    """
-    This is a nural network model to predict human response (valance and arousal) based on the HRC robot state
-    """
-    def __init__(self, input_size=5, hidden_size=32, output_size=2, dropout_rate=0):  # dropout too aggressive for online learning
-        super(HumanResponseModel, self).__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
-
-        # Define the layers
-        self.linear1 = torch.nn.Linear(self.input_size, self.hidden_size)
-        self.dropout1 = torch.nn.Dropout(dropout_rate)
-        self.linear2 = torch.nn.Linear(self.hidden_size, self.hidden_size)
-        self.dropout2 = torch.nn.Dropout(dropout_rate)
-        self.linear3 = torch.nn.Linear(self.hidden_size, self.output_size)
-
-    def forward(self, x):
-        # Pass the input tensor through each of our operations
-        x = self.linear1(x)
-        x = torch.nn.functional.relu(x)
-        x = self.dropout1(x)
-        x = self.linear2(x)
-        x = torch.nn.functional.relu(x)
-        x = self.dropout2(x)
-        x = self.linear3(x)
-        x = torch.nn.functional.tanh(x) * 10
-        return x
-
-
-class DataBuffer:
-    """
-    This is a data buffer to store the data point for training
-    """
-    def __init__(self):
-        self.buffer = []
-        self.human_response_buffer = []
-        self.robot_state_buffer = []
-        self.length = 0
-
-    def add(self, robot_state, human_response):
-        data_point = {'robot_state': robot_state, 'human_response': human_response}
-        self.buffer.append(data_point)
-        self.human_response_buffer.append(human_response)
-        self.robot_state_buffer.append(robot_state)
-        self.length += 1
-
-    def sample(self, batch_size):
-        # todo: currently random sample, some data might be sampled multiple times or missed
-        idx = np.random.choice(np.arange(len(self.buffer)), size=batch_size, replace=False)
-        robot_state_buffer_np = np.array(self.robot_state_buffer)
-        human_response_buffer_np = np.array(self.human_response_buffer)
-        return human_response_buffer_np[idx], robot_state_buffer_np[idx]
-
-    def __len__(self):
-        return self.length
-
-
-def grid_search(args, env, model, GT=False):
-    step = 1/args.grid_search_num
-    continuous_bin = np.arange(0, 1+step, step)
-    binary_bin = [-1, 1]
-    bin_map = [(0, 0, a, b, x, y, z) for a in continuous_bin for b in continuous_bin for x in binary_bin for y in
-               binary_bin for z in binary_bin]
-    move_spd_low_bnd, move_spd_high_bnd = [27.8, 143.8]  # todo: get from env
-    arm_spd_low_bnd, arm_spd_high_bnd = [23.8, 109.1]
-
-    full_states = np.array(bin_map)  # full state needed only for env.compute_human_response
-    full_states[:, 2] = full_states[:, 2] * (move_spd_high_bnd - move_spd_low_bnd) + move_spd_low_bnd
-    full_states[:, 3] = full_states[:, 3] * (arm_spd_high_bnd - arm_spd_low_bnd) + arm_spd_low_bnd
-
-    if not GT:
-        robot_states = torch.from_numpy(full_states[:, 2:]).float().to(args.device)  # Convert numpy array to PyTorch tensor
-        arousals, valances = model(robot_states).detach().cpu().numpy().T
-
-    best_reward = -1000
-    best_robot_state = []
-    have_result = False
-    for i in range(len(bin_map)):
-        this_state = full_states[i]
-        travelTime = env.calculate_traveltime(this_state[2], this_state[3], this_state[4], this_state[5], this_state[6])
-        productivity = env.calculate_productivity(travelTime)
-        if GT:
-            arousal, valance = env.compute_human_response(this_state)
-        else:
-            arousal = arousals[i]
-            valance = valances[i]
-        if arousal > 0 and valance > 0:
-            if productivity > best_reward:
-                best_reward = productivity
-                best_robot_state = this_state[2:]
-                have_result = True
-    return best_robot_state, best_reward, have_result
-
+from rand_param_envs.gym.envs.HRC.kuka_human_response import KukaHumanResponse, KukaHumanResponse_Rand
+from HumanResponseModel import HumanResponseModel
+from DataBuffer import DataBuffer
+from utility import *
 
 def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Sample data points from the buffer
@@ -123,27 +29,6 @@ def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-
-
-def choose_device(args):
-    if args.device == 'cuda':
-        print('Trying GPU...')
-        args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    elif args.device == 'cpu':
-        print('Using CPU...')
-        args.device = torch.device("cpu")
-    else:
-        print('Unknown device, using CPU...')
-        args.device = torch.device("cpu")
-    print('Using args.device:', args.device)
-    return args
-
-
-def random_explore(args, env):
-    data_point = env.reset()
-    human_response = data_point[:2]
-    robot_state = data_point[2:]
-    return human_response, robot_state
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Human Response Model')

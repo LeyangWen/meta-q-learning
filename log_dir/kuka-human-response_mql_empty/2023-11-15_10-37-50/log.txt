@@ -1,1 +1,0 @@
-Logging to ./log_dir/kuka-human-response_mql_empty/2023-11-15_10-37-50
