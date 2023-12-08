@@ -29,3 +29,9 @@ To run the project, execute the `model_based_rl.py` script. This script trains t
 [Human response model (env)](rand_param_envs/gym/envs/HRC/kuka_human_response.py)
 
 [Human response model (env) readme](rand_param_envs/gym/envs/HRC/human_response/readme.md)
+
+## Acknowledgements
+
+Some modules of this project is built upon the [meta-q-learning] repository. We thank the authors for making their code publicly available.
+
+[meta-q-learning]: https://github.com/amazon-science/meta-q-learning
