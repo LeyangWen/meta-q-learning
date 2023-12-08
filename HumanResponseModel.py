@@ -1,7 +1,6 @@
 import torch
 
 
-
 class HumanResponseModel(torch.nn.Module):
     """
     This is a nural network model to predict human response (valance and arousal) based on the HRC robot state

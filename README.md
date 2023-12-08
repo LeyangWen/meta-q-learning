@@ -26,9 +26,9 @@ To run the project, execute the `model_based_rl.py` script. This script trains t
 
 ## Quick Links
 
-[Human response model (env)](rand_param_envs/gym/envs/HRC/kuka_human_response.py)
+[Human response model (env) .py](rand_param_envs/gym/envs/HRC/kuka_human_response.py)
 
-[Human response model (env) readme](rand_param_envs/gym/envs/HRC/human_response/readme.md)
+[Human response model (env) .md](rand_param_envs/gym/envs/HRC/human_response/readme.md)
 
 ## Acknowledgements
 
