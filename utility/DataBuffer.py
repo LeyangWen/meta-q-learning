@@ -10,6 +10,7 @@ class DataBuffer:
         self.human_response_buffer = []
         self.robot_state_buffer = []
         self.productivity_buffer = []
+        self.good_human_response_buffer = []
         self.is_exploit_buffer = []
         self.length = 0
 
@@ -18,7 +19,7 @@ class DataBuffer:
         self.aro_std = 0
         self.aro_mean = 0
 
-    def add(self, robot_state, human_response, productivity, is_exploit=True):
+    def add(self, robot_state, human_response, productivity, good_human_response, is_exploit=True):
         """
         :param robot_state: 5D robot state, first 2 continuous, last 3 discrete
         :param human_response: 2D, valance and arousal
@@ -29,6 +30,7 @@ class DataBuffer:
         self.human_response_buffer.append(human_response)
         self.robot_state_buffer.append(robot_state)
         self.productivity_buffer.append(productivity)
+        self.good_human_response_buffer.append(good_human_response)
         self.is_exploit_buffer.append(is_exploit)
         self.length += 1
         if not is_exploit:

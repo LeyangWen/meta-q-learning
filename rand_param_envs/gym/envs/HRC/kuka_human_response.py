@@ -8,7 +8,7 @@ from deprecated import deprecated
 
 
 class KukaHumanResponse(gym.Env):
-    def __init__(self, verbose=True):
+    def __init__(self, verbose=True, normalized=True):
         '''
         :param max_steps: maximum number of steps
         :param verbose: whether to print out information
@@ -33,6 +33,8 @@ class KukaHumanResponse(gym.Env):
                                             )
         # todo: add to init input after testing
         self.verbose = verbose
+        self.normalized = normalized
+
         self.continuous_change_speed = 15
         self.half_break_time = 2 # min #todo: maybe make this smaller 90% break time is very long
         self.max_steps = 1000  # not used
@@ -77,6 +79,8 @@ class KukaHumanResponse(gym.Env):
         :param curr_state: [valence, arousal, movement_speed, arm_swing_speed, proximity, level_of_autonomy, leader_of_collaboration], optional first two elements
         :param simulated: whether to use simulated human response in csv file
         :return: np.array(valence, arousal)
+        if self.normalized, valence and arousal zero mean and unit variance based on each subject
+        else, valence and arousal are raw values
         """
         if simulated:
             if len(curr_state) == 7:
@@ -93,8 +97,12 @@ class KukaHumanResponse(gym.Env):
             currStateMat = np.array(
                 [1, robot_state[0] ** 2, robot_state[0], robot_state[1] ** 2, robot_state[1], robot_state[2],
                  robot_state[3], robot_state[4], 1])
-            valence = np.matmul(currStateMat, self.val_coeffs) # * self.val_std + self.val_mean  # todo: normalize
-            arousal = np.matmul(currStateMat, self.aro_coeffs) # * self.aro_std + self.aro_mean
+            if self.normalized:
+                valence = np.matmul(currStateMat, self.val_coeffs)
+                arousal = np.matmul(currStateMat, self.aro_coeffs)
+            else:
+                valence = np.matmul(currStateMat, self.val_coeffs) * self.val_std + self.val_mean
+                arousal = np.matmul(currStateMat, self.aro_coeffs) * self.aro_std + self.aro_mean
             return np.array([valence, arousal])
         else:
             raise NotImplementedError
@@ -270,7 +278,7 @@ class KukaHumanResponse(gym.Env):
 
 
 class KukaHumanResponse_Rand(KukaHumanResponse):
-    def __init__(self, task={}, n_tasks=18, randomize_tasks=False):
+    def __init__(self, task={}, n_tasks=18, randomize_tasks=False, verbose=True, normalized=True):
         '''
         :param task: task is a dictionary with key 'goal_position'
         :param n_tasks: number of tasks, 18 subjects in total, 13 for training, 5 for testing
@@ -280,7 +288,7 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.tasks = self.sample_tasks(n_tasks)
         self.load_from_task(self.tasks[0])
         # goal_position
-        super(KukaHumanResponse_Rand, self).__init__()
+        super(KukaHumanResponse_Rand, self).__init__(verbose=verbose, normalized=normalized)
 
     def load_response(self, file, index):
         data = np.loadtxt(file, delimiter=',')

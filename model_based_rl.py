@@ -16,7 +16,9 @@ from utility.utility import *
 def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Sample data points from the buffer
     human_responses, robot_states = data_buffer.sample(batch_size)
-    # todo: regularization here
+    if not args.normalized_human_response:  # zero mean and unit variance to calculate loss
+        human_responses[:, 0] = (human_responses[:, 0] - data_buffer.val_mean) / data_buffer.val_std
+        human_responses[:, 1] = (human_responses[:, 1] - data_buffer.aro_mean) / data_buffer.aro_std
 
     # Convert numpy arrays to PyTorch tensors and move to args.device
     robot_states = torch.from_numpy(robot_states).float().to(args.device)
@@ -36,8 +38,15 @@ def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
 
 
 def grid_search(args, env, model, GT=False):
-    step = 1/args.grid_search_num
-    continuous_bin = np.arange(0, 1+step, step)
+    if GT:
+        search_num = 200
+    else:
+        if args.add_noise_during_grid_search:
+            noise = np.random.randint(-args.add_noise_during_grid_search, args.add_noise_during_grid_search)
+        else:
+            noise = 0
+        search_num = args.grid_search_num + noise
+    continuous_bin = np.linspace(0, 1, search_num)
     binary_bin = [-1, 1]
     bin_map = [(0, 0, a, b, x, y, z) for a in continuous_bin for b in continuous_bin for x in binary_bin for y in
                binary_bin for z in binary_bin]
@@ -87,17 +96,19 @@ def parse_args():
     parser.add_argument('--grid_search_num', default=100, type=int, help='number of grid search, positive integer')
     parser.add_argument('--random_explore_num', default=32, type=int, help='number of random explore, positive integer')
     parser.add_argument('--train_batch_size', default=32, type=int, help='batch size for training, positive integer')
-    parser.add_argument('--train_step_per_episode', default=1000, type=int, help='number of training steps per episode, positive integer')
-    parser.add_argument('--episode_num', default=100, type=int, help='batch size for training, positive integer')
+    parser.add_argument('--train_step_per_episode', default=1024, type=int, help='number of training steps per episode, positive integer')
+    parser.add_argument('--episode_num', default=512, type=int, help='batch size for training, positive integer')
     parser.add_argument('--exploration_rate', default=0.5, type=float, help='exploration rate, float between 0 and 1')
     parser.add_argument('--exploration_decay_rate', default=0.99, type=float, help='exploration decay rate, float between 0 and 1')
     parser.add_argument('--learning_rate', default=0.001, type=float, help='learning rate, float between 0 and 1')
     parser.add_argument('--weight_decay', default=0.001, type=float, help='weight decay, float between 0 and 1')
     # parser.add_argument('--pretrained_model', default=None, help='path to pretrained model')
     parser.add_argument('--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
-    parser.add_argument('--wandb_project', default='HRC_model_based_rl', help='wandb project name')
-    parser.add_argument('--wandb_name', default='Debug-32rand-512total-morePlot', help='wandb run name')
-    parser.add_argument('--result_look_back_episode', default=20, type=int, help='number of episodes to look back for best result')
+    parser.add_argument('--wandb_project', default='HRC_model_based_rl_2', help='wandb project name')
+    parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
+    parser.add_argument('--result_look_back_episode', default=100, type=int, help='number of episodes to look back for best result')
+    parser.add_argument('--normalized_human_response', default=True, type=bool, help='whether to normalize human response')
+    parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
     args = parser.parse_args()
     return args
 
@@ -105,21 +116,21 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     args = choose_device(args)
-
+    start_time = time.time()
     wandb.init(project=args.wandb_project, name=args.wandb_name, config=vars(args))  # Initialize a new run
     wandb.define_metric("train/episode")  # define our custom x axis metric
     wandb.define_metric("train/*", step_metric="train/episode")  # set all other train/ metrics to use this step
 
-    env = KukaHumanResponse_Rand()  # Create the environment
+    env = KukaHumanResponse_Rand(normalized=args.normalized_human_response)  # Create the environment
     env.reset()
     for subject_id in range(18):  #18
         print('\n\n------------------------------------ Subject', subject_id, '------------------------------------')
         env.reset_task(subject_id)
         args.sub_id = subject_id
         GT_robot_state, GT_best_reward, GT_have_result = grid_search(args, env, None, GT=True)
-        human_response = env.compute_human_response(GT_robot_state)
+        GT_human_response = env.compute_human_response(GT_robot_state)
         if GT_have_result:
-            print(f"productivity: {GT_best_reward:.2f}, human response: {human_response}, robot state: {GT_robot_state}")
+            print(f"productivity: {GT_best_reward:.2f}, human response: {GT_human_response}, robot state: {GT_robot_state}")
         else:
             print("No GT result")
         print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GT @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
@@ -136,13 +147,16 @@ if __name__ == '__main__':
             data_point = env.reset()
             human_response = data_point[:2]
             robot_state = data_point[2:]
-            data_buffer.add(robot_state, human_response, np.nan,  is_exploit=False)
-        print(f"Buffer filled with {args.random_explore_num} random data points")
+            data_buffer.add(robot_state, human_response, np.nan, np.nan, is_exploit=False)
+        current_time = time.time()
+        print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
+
 
         exploit_success_num = 0
         exploit_total_num = 0
         reward = np.nan
         good_human_response = np.nan
+
         for i in range(args.episode_num):  # run n episodes of HRC interaction
             is_exploit = np.random.random() > exploration_rate
             if is_exploit:  # exploit
@@ -163,7 +177,8 @@ if __name__ == '__main__':
             #### log ####
             log_dict = {}
             log_dict["train/episode"] = i  # our custom x axis metric
-            log_dict[f"train/Subject({env.sub_id})/Productivity)"] = reward  # can not have "." in name or wandb plot have wrong x axis
+            log_dict[f"time (s)"] = time.time() - start_time
+            log_dict[f"train/Subject({env.sub_id})/Productivity"] = reward  # can not have "." in name or wandb plot have wrong x axis
             log_dict[f"train/Subject({env.sub_id})/Good human response %)"] = exploit_success_num / (exploit_total_num+1e-6)
             log_dict[f"train/Subject({env.sub_id})/Productivity %"] = reward / GT_best_reward
             log_dict[f"train/Subject({env.sub_id})/Robot movement speed"] = robot_state[0]
@@ -175,7 +190,7 @@ if __name__ == '__main__':
             wandb.log(log_dict)
 
             # store in buffer
-            data_buffer.add(robot_state, human_response, reward, is_exploit)
+            data_buffer.add(robot_state, human_response, reward, good_human_response, is_exploit=is_exploit)
             model.train()
             for training_step in range(args.train_step_per_episode):
                 print(f"Training step {training_step}...", end="\r")
@@ -185,23 +200,34 @@ if __name__ == '__main__':
             exploration_rate = exploration_rate * args.exploration_decay_rate
 
         # look back few episodes to find best result
-        converge_result = {"robot_state": [], "human_response": [], "productivity": []}
+        converge_result = {"robot_state": data_buffer.robot_state_buffer[-1],
+                           "human_response": data_buffer.human_response_buffer[-1],
+                            "productivity": data_buffer.productivity_buffer[-1]}
         best_productivity = 0
+        found_result = False
         for look_back in range(args.result_look_back_episode):
             if data_buffer.is_exploit_buffer[-look_back]:
-                if data_buffer.productivity_buffer[-look_back] > best_productivity:
-                    best_productivity = data_buffer.productivity_buffer[-look_back]
-                    converge_result["robot_state"] = data_buffer.robot_state_buffer[-look_back]
-                    converge_result["human_response"] = data_buffer.human_response_buffer[-look_back]
-                    converge_result["productivity"] = data_buffer.productivity_buffer[-look_back]
-        if best_productivity == 0:
-            raise Exception(f"No best result found in the looking back {args.result_look_back_episode} episode in buffer")
+                if data_buffer.good_human_response_buffer[-look_back]:
+                    if data_buffer.productivity_buffer[-look_back] > best_productivity:
+                        best_productivity = data_buffer.productivity_buffer[-look_back]
+                        converge_result["robot_state"] = data_buffer.robot_state_buffer[-look_back]
+                        converge_result["human_response"] = data_buffer.human_response_buffer[-look_back]
+                        converge_result["productivity"] = data_buffer.productivity_buffer[-look_back]
+                        found_result = True
+        if not found_result:
+            print(f"No result w. positive human response found in the looking back {args.result_look_back_episode} episode in buffer, put the last result in wandb table")
+            # raise Exception(f"No best result found in the looking back {args.result_look_back_episode} episode in buffer")
+
         #### log ####
+        print(f"Best result in the looking back {args.result_look_back_episode} episode in buffer")
+        print(f"productivity: {converge_result['productivity']:.2f}, human response: {converge_result['human_response']}, robot state: {converge_result['robot_state']}")
+        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Converge Result @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+        print("Logging table in wandb...")
         wandb_GT_table = wandb.Table(
-            columns=[" ", "Productivity", "Valance", "Arousal", "Robot Movement Speed", "Arm Swing Speed",
+            columns=[" ", "Productivity", "Actual_Valance", "Actual_Arousal", "Robot Movement Speed", "Arm Swing Speed",
                      "Proximity", "Autonomy", "Collab"])
-        wandb_GT_table.add_data("GT", GT_best_reward, *human_response, *GT_robot_state)
-        wandb_GT_table.add_data("Results", converge_result["productivity"], *converge_result["human_response"], *converge_result["robot_state"])
+        wandb_GT_table.add_data("GT", GT_best_reward, *GT_human_response, *GT_robot_state)
+        wandb_GT_table.add_data(f"Results_{found_result}", converge_result["productivity"], *converge_result["human_response"], *converge_result["robot_state"])
         wandb.log({f"Train/Subject({subject_id})/Results": wandb_GT_table})
 
         # Save the model and result
@@ -209,3 +235,8 @@ if __name__ == '__main__':
         if not os.path.exists(os.path.dirname(checkpoint_file)):
             os.makedirs(os.path.dirname(checkpoint_file))
         torch.save(model.state_dict(), checkpoint_file)
+
+        elapsed_time = time.time() - start_time
+        subject_time = time.time() - current_time
+        current_time = time.time()
+        print(f"[{(elapsed_time)/60:.2f} min] Subject {subject_id} finished, subject time: {(subject_time)/60:.2f} min")
