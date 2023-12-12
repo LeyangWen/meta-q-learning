@@ -2,15 +2,34 @@ import wandb
 import pandas as pd
 
 api = wandb.Api()
-entity, project = "qaq37", "HRC_model_based_rl"
+entity, project = "qaq37", "HRC_model_based_rl_2"
 runs = api.runs(entity + "/" + project)
+
+latest_run = runs[0]
+
+# Get logged data
+history = latest_run.history()
+name = latest_run.name
+
 
 summary_list, config_list, name_list = [], [], []
 for run in runs:
     print(run.name)
+    name = run.name
+    config = run.config
+    summary = run.summary
+    history = run.history()
+
+    keys = history.columns.values.tolist()
+    episode = history['train/episode']
+    episode_start_idx = episode[episode == 0].index.tolist()
+
     # .summary contains the output keys/values
     #  for metrics such as accuracy.
     #  We call ._json_dict to omit large files
+    run.config
+
+
     summary_list.append(run.summary._json_dict)
 
     # .config contains the hyperparameters.

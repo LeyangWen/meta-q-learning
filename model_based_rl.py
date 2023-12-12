@@ -104,11 +104,15 @@ def parse_args():
     parser.add_argument('--weight_decay', default=0.001, type=float, help='weight decay, float between 0 and 1')
     # parser.add_argument('--pretrained_model', default=None, help='path to pretrained model')
     parser.add_argument('--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
-    parser.add_argument('--wandb_project', default='HRC_model_based_rl_2', help='wandb project name')
-    parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
+    parser.add_argument('--wandb_project', default='HRC_debug_1', help='wandb project name')
+    # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
+    parser.add_argument('--wandb_mode', default='on', type=str, help='choose from on, offline, disabled')
     parser.add_argument('--result_look_back_episode', default=100, type=int, help='number of episodes to look back for best result')
     parser.add_argument('--normalized_human_response', default=True, type=bool, help='whether to normalize human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
+    parser.add_argument('--debug_mode', default=True, type=bool, help='small test for debug mode')
+
+
     args = parser.parse_args()
     return args
 
@@ -117,16 +121,24 @@ if __name__ == '__main__':
     args = parse_args()
     args = choose_device(args)
     start_time = time.time()
-    wandb.init(project=args.wandb_project, name=args.wandb_name, config=vars(args))  # Initialize a new run
-    wandb.define_metric("train/episode")  # define our custom x axis metric
-    wandb.define_metric("train/*", step_metric="train/episode")  # set all other train/ metrics to use this step
+
+    os.environ["WANDB_MODE"] = args.wandb_mode
+    if args.debug_mode:  # small test
+        args.episode_num = 100
+        args.train_step_per_episode = 10
+        args.train_batch_size = 10
+        args.look_back_episode = 2
 
     env = KukaHumanResponse_Rand(normalized=args.normalized_human_response)  # Create the environment
     env.reset()
-    for subject_id in range(18):  #18
+    for subject_id in range(18):  # 18 subjects
         print('\n\n------------------------------------ Subject', subject_id, '------------------------------------')
-        env.reset_task(subject_id)
         args.sub_id = subject_id
+        wandb.init(project=args.wandb_project, name=f"Subject_{args.sub_id}", config=vars(args))  # Initialize a new run
+        wandb.define_metric("train/episode")  # define our custom x axis metric
+        wandb.define_metric("train/*", step_metric="train/episode")  # set all other train/ metrics to use this step
+
+        env.reset_task(subject_id)
         GT_robot_state, GT_best_reward, GT_have_result = grid_search(args, env, None, GT=True)
         GT_human_response = env.compute_human_response(GT_robot_state)
         if GT_have_result:
@@ -142,7 +154,8 @@ if __name__ == '__main__':
         loss_function = torch.nn.MSELoss()
         exploration_rate = args.exploration_rate
 
-        for _ in range(args.random_explore_num):  # fill the buffer with random data points
+        # Step 1: fill the buffer with random data points
+        for _ in range(args.random_explore_num):
             print(f"Fill the buffer with random data points {_}/{args.random_explore_num}...", end="\r")
             data_point = env.reset()
             human_response = data_point[:2]
@@ -151,13 +164,12 @@ if __name__ == '__main__':
         current_time = time.time()
         print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
 
-
+        # Step 2: run n episodes of HRC interaction, generate data points and train the model in each episode
         exploit_success_num = 0
         exploit_total_num = 0
         reward = np.nan
         good_human_response = np.nan
-
-        for i in range(args.episode_num):  # run n episodes of HRC interaction
+        for i in range(args.episode_num):
             is_exploit = np.random.random() > exploration_rate
             if is_exploit:  # exploit
                 exploit_total_num += 1
@@ -178,16 +190,16 @@ if __name__ == '__main__':
             log_dict = {}
             log_dict["train/episode"] = i  # our custom x axis metric
             log_dict[f"time (s)"] = time.time() - start_time
-            log_dict[f"train/Subject({env.sub_id})/Productivity"] = reward  # can not have "." in name or wandb plot have wrong x axis
-            log_dict[f"train/Subject({env.sub_id})/Good human response %)"] = exploit_success_num / (exploit_total_num+1e-6)
-            log_dict[f"train/Subject({env.sub_id})/Productivity %"] = reward / GT_best_reward
-            log_dict[f"train/Subject({env.sub_id})/Robot movement speed"] = robot_state[0]
-            log_dict[f"train/Subject({env.sub_id})/Robot movement speed %"] = robot_state[0] / GT_robot_state[0]
-            log_dict[f"train/Subject({env.sub_id})/Robot arm speed"] = robot_state[1]
-            log_dict[f"train/Subject({env.sub_id})/Is exploit"] = float(is_exploit*1.0)
-            log_dict[f"train/Subject({env.sub_id})/Good human response"] = float(good_human_response*1.0)
-
+            log_dict[f"train/Productivity (br/hr)"] = reward  # can not have "." in name or wandb plot have wrong x axis
+            log_dict[f"train/Good human response %)"] = exploit_success_num / (exploit_total_num+1e-6)
+            log_dict[f"train/Productivity %"] = reward / GT_best_reward
+            log_dict[f"train/Robot movement speed (m/s)"] = robot_state[0]
+            log_dict[f"train/Robot movement speed %"] = robot_state[0] / GT_robot_state[0]
+            log_dict[f"train/Robot arm speed (m/s)"] = robot_state[1]
+            log_dict[f"train/Is exploit"] = float(is_exploit*1.0)
+            log_dict[f"train/Good human response"] = float(good_human_response*1.0)
             wandb.log(log_dict)
+            #### log ####
 
             # store in buffer
             data_buffer.add(robot_state, human_response, reward, good_human_response, is_exploit=is_exploit)
@@ -199,7 +211,7 @@ if __name__ == '__main__':
             # update epsilon
             exploration_rate = exploration_rate * args.exploration_decay_rate
 
-        # look back few episodes to find best result
+        # step 3: look back few episodes to find best result for this subject
         converge_result = {"robot_state": data_buffer.robot_state_buffer[-1],
                            "human_response": data_buffer.human_response_buffer[-1],
                             "productivity": data_buffer.productivity_buffer[-1]}
@@ -228,10 +240,11 @@ if __name__ == '__main__':
                      "Proximity", "Autonomy", "Collab"])
         wandb_GT_table.add_data("GT", GT_best_reward, *GT_human_response, *GT_robot_state)
         wandb_GT_table.add_data(f"Results_{found_result}", converge_result["productivity"], *converge_result["human_response"], *converge_result["robot_state"])
-        wandb.log({f"Train/Subject({subject_id})/Results": wandb_GT_table})
+        wandb.log({f"Train/Results": wandb_GT_table})
+        #### log ####
 
         # Save the model and result
-        checkpoint_file = f"{args.checkpoint_dir}/{args.wandb_name}/subject_{args.sub_id}.pt"
+        checkpoint_file = f"{args.checkpoint_dir}/{args.wandb_project}/subject_{args.sub_id}.pt"
         if not os.path.exists(os.path.dirname(checkpoint_file)):
             os.makedirs(os.path.dirname(checkpoint_file))
         torch.save(model.state_dict(), checkpoint_file)
