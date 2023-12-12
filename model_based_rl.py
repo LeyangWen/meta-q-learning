@@ -159,7 +159,8 @@ if __name__ == '__main__':
 
         # Step 1: fill the buffer with random data points
         for _ in range(args.random_explore_num):
-            print(f"Fill the buffer with random data points {_}/{args.random_explore_num}...", end="\r")
+            if args.slurm_id == 0:
+                print(f"Fill the buffer with random data points {_}/{args.random_explore_num}...", end="\r")
             data_point = env.reset()
             human_response = data_point[:2]
             robot_state = data_point[2:]
@@ -208,7 +209,8 @@ if __name__ == '__main__':
             data_buffer.add(robot_state, human_response, reward, good_human_response, is_exploit=is_exploit)
             model.train()
             for training_step in range(args.train_step_per_episode):
-                print(f"Training step {training_step}...", end="\r")
+                if args.slurm_id == 0:
+                    print(f"Training step {training_step}...", end="\r")
                 train_step(args, model, data_buffer, optimizer, loss_function, args.train_batch_size)
 
             # update epsilon
