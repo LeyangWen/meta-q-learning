@@ -106,12 +106,12 @@ def parse_args():
     parser.add_argument('--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
     parser.add_argument('--wandb_project', default='HRC_debug_1', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
-    parser.add_argument('--wandb_mode', default='on', type=str, help='choose from on, offline, disabled')
+    parser.add_argument('--wandb_mode', default='online', type=str, help='choose from on, offline, disabled')
     parser.add_argument('--result_look_back_episode', default=100, type=int, help='number of episodes to look back for best result')
     parser.add_argument('--normalized_human_response', default=True, type=bool, help='whether to normalize human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
     parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles (default: False)')
-
+    parser.add_argument('--slurm_id', default=0, type=int, help='slurm id, used to mark runs')
 
     args = parser.parse_args()
     return args
@@ -134,9 +134,9 @@ if __name__ == '__main__':
     for subject_id in range(18):  # 18 subjects
         print('\n\n------------------------------------ Subject', subject_id, '------------------------------------')
         args.sub_id = subject_id
-        wandb.init(project=args.wandb_project, name=f"Subject_{args.sub_id}", config=vars(args))  # Initialize a new run
-        wandb.define_metric("train/episode")  # define our custom x axis metric
-        wandb.define_metric("train/*", step_metric="train/episode")  # set all other train/ metrics to use this step
+        this_run = wandb.init(project=args.wandb_project, name=f"Subject_{args.sub_id}", config=vars(args))  # Initialize a new run
+        this_run.define_metric("train/episode")  # define our custom x axis metric
+        this_run.define_metric("train/*", step_metric="train/episode")  # set all other train/ metrics to use this step
 
         env.reset_task(subject_id)
         GT_robot_state, GT_best_reward, GT_have_result = grid_search(args, env, None, GT=True)
@@ -189,7 +189,7 @@ if __name__ == '__main__':
             #### log ####
             log_dict = {}
             log_dict["train/episode"] = i  # our custom x axis metric
-            log_dict[f"time (s)"] = time.time() - start_time
+            log_dict[f"time (s)"] = time.time() - current_time
             log_dict[f"train/Productivity (br/hr)"] = reward  # can not have "." in name or wandb plot have wrong x axis
             log_dict[f"train/Good human response %)"] = exploit_success_num / (exploit_total_num+1e-6)
             log_dict[f"train/Productivity %"] = reward / GT_best_reward
@@ -198,7 +198,7 @@ if __name__ == '__main__':
             log_dict[f"train/Robot arm speed (m/s)"] = robot_state[1]
             log_dict[f"train/Is exploit"] = float(is_exploit*1.0)
             log_dict[f"train/Good human response"] = float(good_human_response*1.0)
-            wandb.log(log_dict)
+            this_run.log(log_dict)
             #### log ####
 
             # store in buffer
@@ -240,7 +240,7 @@ if __name__ == '__main__':
                      "Proximity", "Autonomy", "Collab"])
         wandb_GT_table.add_data("GT", GT_best_reward, *GT_human_response, *GT_robot_state)
         wandb_GT_table.add_data(f"Results_{found_result}", converge_result["productivity"], *converge_result["human_response"], *converge_result["robot_state"])
-        wandb.log({f"Train/Results": wandb_GT_table})
+        this_run.log({f"Train/Results": wandb_GT_table})
         #### log ####
 
         # Save the model and result
@@ -253,3 +253,4 @@ if __name__ == '__main__':
         subject_time = time.time() - current_time
         current_time = time.time()
         print(f"[{(elapsed_time)/60:.2f} min] Subject {subject_id} finished, subject time: {(subject_time)/60:.2f} min")
+        this_run.finish()
