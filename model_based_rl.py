@@ -107,6 +107,7 @@ def parse_args():
     parser.add_argument('--wandb_project', default='HRC_debug_1', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online', type=str, help='choose from on, offline, disabled')
+    parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
     parser.add_argument('--result_look_back_episode', default=100, type=int, help='number of episodes to look back for best result')
     parser.add_argument('--normalized_human_response', default=True, type=bool, help='whether to normalize human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
@@ -122,6 +123,8 @@ if __name__ == '__main__':
     args = choose_device(args)
     start_time = time.time()
 
+    if not args.wandb_api_key == 'x'*40:
+        os.environ["WANDB_API_KEY"] = args.wandb_api_key
     os.environ["WANDB_MODE"] = args.wandb_mode
     if args.debug_mode:  # small test
         args.episode_num = 100
@@ -190,14 +193,14 @@ if __name__ == '__main__':
             log_dict = {}
             log_dict["train/episode"] = i  # our custom x axis metric
             log_dict[f"time (s)"] = time.time() - current_time
-            log_dict[f"train/Productivity (br/hr)"] = reward  # can not have "." in name or wandb plot have wrong x axis
+            log_dict[f"train/values/Productivity (br_per_hr)"] = reward  # can not have "." in name or wandb plot have wrong x axis
             log_dict[f"train/Good human response %)"] = exploit_success_num / (exploit_total_num+1e-6)
             log_dict[f"train/Productivity %"] = reward / GT_best_reward
-            log_dict[f"train/Robot movement speed (m/s)"] = robot_state[0]
+            log_dict[f"train/values/Robot movement speed (m_per_s)"] = robot_state[0]
             log_dict[f"train/Robot movement speed %"] = robot_state[0] / GT_robot_state[0]
-            log_dict[f"train/Robot arm speed (m/s)"] = robot_state[1]
-            log_dict[f"train/Is exploit"] = float(is_exploit*1.0)
-            log_dict[f"train/Good human response"] = float(good_human_response*1.0)
+            log_dict[f"train/values/Robot arm speed (m_per_s)"] = robot_state[1]
+            log_dict[f"train/bool/Is exploit"] = float(is_exploit*1.0)
+            log_dict[f"train/bool/Good human response"] = float(good_human_response*1.0)
             this_run.log(log_dict)
             #### log ####
 
@@ -236,10 +239,10 @@ if __name__ == '__main__':
         print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Converge Result @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         print("Logging table in wandb...")
         wandb_GT_table = wandb.Table(
-            columns=[" ", "Productivity", "Actual_Valance", "Actual_Arousal", "Robot Movement Speed", "Arm Swing Speed",
+            columns=["Subject", "Category", "Found_results", "Productivity", "Actual_Valance", "Actual_Arousal", "Robot Movement Speed", "Arm Swing Speed",
                      "Proximity", "Autonomy", "Collab"])
-        wandb_GT_table.add_data("GT", GT_best_reward, *GT_human_response, *GT_robot_state)
-        wandb_GT_table.add_data(f"Results_{found_result}", converge_result["productivity"], *converge_result["human_response"], *converge_result["robot_state"])
+        wandb_GT_table.add_data(f"{args.sub_id}", "GT", "-", GT_best_reward, *GT_human_response, *GT_robot_state)
+        wandb_GT_table.add_data(f"{args.sub_id}", f"Results", f"{found_result}", converge_result["productivity"], *converge_result["human_response"], *converge_result["robot_state"])
         this_run.log({f"Train/Results": wandb_GT_table})
         #### log ####
 

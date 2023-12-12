@@ -11,7 +11,7 @@
 ##SBATCH --partition=gpu
 #SBATCH --partition=debug
 #SBATCH --time=00:30:00
-#SBATCH --account=shdpm0
+#SBATCH --account=engin1
 ##### END preamble
 
 my_job_header
@@ -27,8 +27,11 @@ conda activate meta-q-learning
 mkdir output_slurm
 
 project_name=$SLURM_JOB_NAME
+#API_KEY="API_KEY"
 python -u model_based_rl.py \
---wandb_project "project_name" \
+--wandb_project $project_name \
 --wandb_mode "online" \
 --debug_mode \
 --slurm_id ${SLURM_JOB_ID} > "output_slurm/eval_${SLURM_JOB_ID}_output.out"
+
+#--wandb_api_key $API_KEY \
