@@ -30,6 +30,7 @@ def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Compute loss
     loss = loss_function(outputs, human_responses)
     wandb.log({f"train/human_response_loss": loss.item()})
+    wandb.log({f"epoch_human_response_loss": loss.item()})
 
     # Backward pass and optimization
     optimizer.zero_grad()
