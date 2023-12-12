@@ -23,11 +23,10 @@ module load python/3.10.4
 module load pytorch/2.0.1
 module list
 
+conda activate meta-q-learning
 mkdir output_slurm
 
 project_name=$SLURM_JOB_NAME
-
-echo "checkpoint_bin: $checkpoint_bin"
 python -u model_based_rl.py \
 --wandb_project "project_name" \
 --wandb_mode "online" \
