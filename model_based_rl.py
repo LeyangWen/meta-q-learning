@@ -29,7 +29,7 @@ def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
 
     # Compute loss
     loss = loss_function(outputs, human_responses)
-    # wandb.log({f"loss_sub{args.sub_id}": loss.item()})
+    wandb.log({f"train/human_response_loss": loss.item()})
 
     # Backward pass and optimization
     optimizer.zero_grad()
@@ -113,7 +113,7 @@ def parse_args():
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
     parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles (default: False)')
     parser.add_argument('--slurm_id', default=0, type=int, help='slurm id, used to mark runs')
-
+    parser.add_argument('--arg_notes', default="added_loss_log", type=str, help='notes for this run, will be stored in wandb')
     args = parser.parse_args()
     return args
 
@@ -126,7 +126,8 @@ if __name__ == '__main__':
     if not args.wandb_api_key == 'x'*40:
         os.environ["WANDB_API_KEY"] = args.wandb_api_key
     os.environ["WANDB_MODE"] = args.wandb_mode
-    if args.debug_mode:  # small test
+    if args.debug_mode or True:  # small test
+        args.wandb_project = 'HRC_debug_1'
         args.episode_num = 100
         args.train_step_per_episode = 10
         args.train_batch_size = 10
