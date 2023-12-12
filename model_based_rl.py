@@ -110,7 +110,7 @@ def parse_args():
     parser.add_argument('--result_look_back_episode', default=100, type=int, help='number of episodes to look back for best result')
     parser.add_argument('--normalized_human_response', default=True, type=bool, help='whether to normalize human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
-    parser.add_argument('--debug_mode', default=True, type=bool, help='small test for debug mode')
+    parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles (default: False)')
 
 
     args = parser.parse_args()
