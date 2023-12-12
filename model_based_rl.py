@@ -127,7 +127,7 @@ if __name__ == '__main__':
     if not args.wandb_api_key == 'x'*40:
         os.environ["WANDB_API_KEY"] = args.wandb_api_key
     os.environ["WANDB_MODE"] = args.wandb_mode
-    if args.debug_mode or True:  # small test
+    if args.debug_mode:  # small test
         args.wandb_project = 'HRC_debug_1'
         args.episode_num = 100
         args.train_step_per_episode = 10
@@ -195,9 +195,9 @@ if __name__ == '__main__':
             #### log ####
             log_dict = {}
             log_dict["train/episode"] = i  # our custom x axis metric
-            log_dict[f"time (s)"] = time.time() - current_time
+            log_dict[f"train/time (s)"] = time.time() - current_time
             log_dict[f"train/values/Productivity (br_per_hr)"] = reward  # can not have "." in name or wandb plot have wrong x axis
-            log_dict[f"train/Good human response %)"] = exploit_success_num / (exploit_total_num+1e-6)
+            log_dict[f"train/Good human response %"] = exploit_success_num / (exploit_total_num+1e-6)
             log_dict[f"train/Productivity %"] = reward / GT_best_reward
             log_dict[f"train/values/Robot movement speed (m_per_s)"] = robot_state[0]
             log_dict[f"train/Robot movement speed %"] = robot_state[0] / GT_robot_state[0]
