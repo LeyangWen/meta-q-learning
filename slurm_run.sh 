@@ -31,7 +31,7 @@ project_name=$SLURM_JOB_NAME
 python -u model_based_rl.py \
 --wandb_project $project_name \
 --wandb_mode "online" \
---debug_mode \
 --slurm_id ${SLURM_JOB_ID} > "output_slurm/eval_${SLURM_JOB_ID}_output.out"
 
+#--debug_mode \
 #--wandb_api_key $API_KEY \
