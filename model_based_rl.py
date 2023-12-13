@@ -13,6 +13,8 @@ from utility.DataBuffer import DataBuffer
 from utility.utility import *
 
 #todo: revert back to logging time and loss per step. It is slowing down too much
+#todo: improve GT grid search resolution
+#todo: log look back number
 def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Sample data points from the buffer
     human_responses, robot_states = data_buffer.sample(batch_size)
