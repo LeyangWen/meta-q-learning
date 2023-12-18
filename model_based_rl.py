@@ -12,15 +12,14 @@ from HumanResponseModel import HumanResponseModel
 from utility.DataBuffer import DataBuffer
 from utility.utility import *
 
-#todo: revert back to logging time and loss per step. It is slowing down too much
-#todo: improve GT grid search resolution
-#todo: log look back number
+#todo: meta learning - change to one subject only.
+#todo: random grid search - normalized
+#todo: move GT find to the end?, in that case, need to find another way to plot %
 def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Sample data points from the buffer
     human_responses, robot_states = data_buffer.sample(batch_size)
-    if not args.normalized_human_response:  # zero mean and unit variance to calculate loss
-        human_responses[:, 0] = (human_responses[:, 0] - data_buffer.val_mean) / data_buffer.val_std
-        human_responses[:, 1] = (human_responses[:, 1] - data_buffer.aro_mean) / data_buffer.aro_std
+    if not args.normalized_human_response:  # env returns actual human response not normalized, normalize here using cumulative mean and std from explore data points
+        human_responses = data_buffer.normalize_human_response_batch(human_responses)
 
     # Convert numpy arrays to PyTorch tensors and move to args.device
     robot_states = torch.from_numpy(robot_states).float().to(args.device)
@@ -32,7 +31,7 @@ def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Compute loss
     loss = loss_function(outputs, human_responses)
     wandb.log({f"train/human_response_loss": loss.item()})
-    wandb.log({f"epoch_human_response_loss": loss.item()})
+    # wandb.log({f"epoch_human_response_loss": loss.item()})
 
     # Backward pass and optimization
     optimizer.zero_grad()
@@ -40,9 +39,18 @@ def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     optimizer.step()
 
 
-def grid_search(args, env, model, GT=False):
+def grid_search(args, env, model, data_buffer=None, GT=False):
+    """ Grid search for the best robot state with max productivity and positive valance and arousal
+    :param args: args
+    :param env: env
+    :param model: model
+    :param data_buffer: data buffer
+    :param GT: whether to use ground truth model
+    :return: best_robot_state, best_reward, have_result
+    """
+    # todo finish data_buffer part
     if GT:
-        search_num = 200
+        search_num = args.gt_grid_search_num
     else:
         if args.add_noise_during_grid_search:
             noise = np.random.randint(-args.add_noise_during_grid_search, args.add_noise_during_grid_search)
@@ -50,11 +58,11 @@ def grid_search(args, env, model, GT=False):
             noise = 0
         search_num = args.grid_search_num + noise
     continuous_bin = np.linspace(0, 1, search_num)
-    binary_bin = [-1, 1]
+    binary_bin = [env.low_binary, env.high_binary]  # [-1, 1]
     bin_map = [(0, 0, a, b, x, y, z) for a in continuous_bin for b in continuous_bin for x in binary_bin for y in
                binary_bin for z in binary_bin]
-    move_spd_low_bnd, move_spd_high_bnd = [27.8, 143.8]  # todo: get from env
-    arm_spd_low_bnd, arm_spd_high_bnd = [23.8, 109.1]
+    move_spd_low_bnd, move_spd_high_bnd = [env.move_spd_low_bnd, env.move_spd_high_bnd]  # [27.8, 143.8]
+    arm_spd_low_bnd, arm_spd_high_bnd = [env.arm_spd_low_bnd, env.arm_spd_high_bnd]  # [23.8, 109.1]
 
     full_states = np.array(bin_map)  # full state needed only for env.compute_human_response
     full_states[:, 2] = full_states[:, 2] * (move_spd_high_bnd - move_spd_low_bnd) + move_spd_low_bnd
@@ -72,7 +80,12 @@ def grid_search(args, env, model, GT=False):
         travelTime = env.calculate_traveltime(this_state[2], this_state[3], this_state[4], this_state[5], this_state[6])
         productivity = env.calculate_productivity(travelTime)
         if GT:
-            arousal, valance = env.compute_human_response(this_state)
+            if args.normalized_human_response:
+                arousal, valance = env.compute_human_response(this_state)
+            else:
+                arousal, valance = data_buffer.normalize_human_response(env.compute_human_response(this_state))
+                # todo: discuss with Francis, should GT normalization parameter be used here, or the estimated one from the explore data points?
+                # in actual experiment, we will not have GT normalization parameter, so we should use the estimated one from the explore data points
         else:
             arousal = arousals[i]
             valance = valances[i]
@@ -93,10 +106,37 @@ def random_explore(args, env):
     return human_response, robot_state
 
 
+def look_back_in_buffer(data_buffer, look_back_episode):
+    """ Look back in the data buffer a few episodes to find the best result
+    :param data_buffer: data buffer
+    :param look_back_episode: number of episodes to look back
+    :return: best_productivity, converge_result, found_result
+    """
+    converge_result = {"robot_state": data_buffer.robot_state_buffer[-1],
+                       "human_response": data_buffer.human_response_buffer[-1],
+                       "human_response_normalized": data_buffer.normalize_human_response(data_buffer.human_response_buffer[-1]),
+                       "productivity": data_buffer.productivity_buffer[-1]}
+    best_productivity = 0
+    found_result = False
+    for look_back in range(look_back_episode):
+        if data_buffer.is_exploit_buffer[-look_back]:
+            if data_buffer.good_human_response_buffer[-look_back]:
+                if data_buffer.productivity_buffer[-look_back] > best_productivity:
+                    best_productivity = data_buffer.productivity_buffer[-look_back]
+                    converge_result["robot_state"] = data_buffer.robot_state_buffer[-look_back]
+                    converge_result["human_response"] = data_buffer.human_response_buffer[-look_back]
+                    converge_result["human_response_normalized"] = data_buffer.normalize_human_response(
+                        data_buffer.human_response_buffer[-look_back])
+                    converge_result["productivity"] = data_buffer.productivity_buffer[-look_back]
+                    found_result = True
+    return converge_result, found_result
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Human Response Model')
     parser.add_argument('--device', default='cuda', help='device, cpu or cuda')
     parser.add_argument('--grid_search_num', default=100, type=int, help='number of grid search, positive integer')
+    parser.add_argument('--gt_grid_search_num', default=500, type=int, help='number of grid search for GT, positive integer')
     parser.add_argument('--random_explore_num', default=32, type=int, help='number of random explore, positive integer')
     parser.add_argument('--train_batch_size', default=32, type=int, help='batch size for training, positive integer')
     parser.add_argument('--train_step_per_episode', default=1024, type=int, help='number of training steps per episode, positive integer')
@@ -111,10 +151,10 @@ def parse_args():
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online', type=str, help='choose from on, offline, disabled')
     parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
-    parser.add_argument('--result_look_back_episode', default=100, type=int, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', default=True, type=bool, help='whether to normalize human response')
+    parser.add_argument('--result_look_back_episode', default=[5,10,20,50,100], type=list, help='number of episodes to look back for best result')
+    parser.add_argument('--normalized_human_response', default=True, type=bool, help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
-    parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles (default: False)')
+    parser.add_argument('--debug_mode', action='store_false', help='Enable debug mode for smaller cycles (default: False)')
     parser.add_argument('--slurm_id', default=0, type=int, help='slurm id, used to mark runs')
     parser.add_argument('--arg_notes', default="added_loss_log", type=str, help='notes for this run, will be stored in wandb')
     args = parser.parse_args()
@@ -134,7 +174,7 @@ if __name__ == '__main__':
         args.episode_num = 100
         args.train_step_per_episode = 10
         args.train_batch_size = 10
-        args.look_back_episode = 2
+        args.gt_grid_search_num = 100
 
     env = KukaHumanResponse_Rand(normalized=args.normalized_human_response)  # Create the environment
     env.reset()
@@ -220,36 +260,42 @@ if __name__ == '__main__':
             # update epsilon
             exploration_rate = exploration_rate * args.exploration_decay_rate
 
+        data = [[x, y] for (x, y) in zip(range(args.episode_num), reward / GT_best_reward)]
+        table = wandb.Table(data=data, columns=["x", "y"])
+        this_run.log(
+            {
+                "my_custom_plot_id": wandb.plot.line(
+                    table, "x", "y", title="Custom Y vs X Line Plot"
+                )
+            }
+        )
         # step 3: look back few episodes to find best result for this subject
-        converge_result = {"robot_state": data_buffer.robot_state_buffer[-1],
-                           "human_response": data_buffer.human_response_buffer[-1],
-                            "productivity": data_buffer.productivity_buffer[-1]}
-        best_productivity = 0
-        found_result = False
-        for look_back in range(args.result_look_back_episode):
-            if data_buffer.is_exploit_buffer[-look_back]:
-                if data_buffer.good_human_response_buffer[-look_back]:
-                    if data_buffer.productivity_buffer[-look_back] > best_productivity:
-                        best_productivity = data_buffer.productivity_buffer[-look_back]
-                        converge_result["robot_state"] = data_buffer.robot_state_buffer[-look_back]
-                        converge_result["human_response"] = data_buffer.human_response_buffer[-look_back]
-                        converge_result["productivity"] = data_buffer.productivity_buffer[-look_back]
-                        found_result = True
-        if not found_result:
-            print(f"No result w. positive human response found in the looking back {args.result_look_back_episode} episode in buffer, put the last result in wandb table")
-            # raise Exception(f"No best result found in the looking back {args.result_look_back_episode} episode in buffer")
 
-        #### log ####
+        #### find converge and log ####
         print(f"Best result in the looking back {args.result_look_back_episode} episode in buffer")
-        print(f"productivity: {converge_result['productivity']:.2f}, human response: {converge_result['human_response']}, robot state: {converge_result['robot_state']}")
-        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Converge Result @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         print("Logging table in wandb...")
         wandb_GT_table = wandb.Table(
-            columns=["Subject", "Category", "Found_results", "Productivity", "Actual_Valance", "Actual_Arousal", "Robot Movement Speed", "Arm Swing Speed",
+            columns=["Subject", "Category", "Look Back Num", "Found Results",
+                     "Productivity",
+                     "Observed Valance", "Observed Arousal", "Observed Normalized Valance", "Observed Normalized Arousal",
+                     "Robot Movement Speed", "Arm Swing Speed",
                      "Proximity", "Autonomy", "Collab"])
         wandb_GT_table.add_data(f"{args.sub_id}", "GT", "-", GT_best_reward, *GT_human_response, *GT_robot_state)
-        wandb_GT_table.add_data(f"{args.sub_id}", f"Results", f"{found_result}", converge_result["productivity"], *converge_result["human_response"], *converge_result["robot_state"])
+        for look_back_episode in args.result_look_back_episode:
+            converge_result, found_result = look_back_in_buffer(data_buffer, look_back_episode)
+
+            print(f"Look back {look_back_episode} episodes, found result: {found_result}, "
+                  f"productivity: {converge_result['productivity']:.2f}, "
+                  f"human response: {converge_result['human_response']}, "
+                  f"robot state: {converge_result['robot_state']}")
+            wandb_GT_table.add_data(f"{args.sub_id}", f"Results", look_back_episode, f"{found_result}",
+                                    converge_result["productivity"],
+                                    *converge_result["human_response"],
+                                    *converge_result["human_response_normalized"],
+                                    *converge_result["robot_state"])
+
         this_run.log({f"Train/Results": wandb_GT_table})
+        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Converge Result @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         #### log ####
 
         # Save the model and result

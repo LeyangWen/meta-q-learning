@@ -2,6 +2,21 @@ import wandb
 import pandas as pd
 
 api = wandb.Api()
+entity = this_run.entity
+project = this_run.project
+run_id = this_run.id
+runs = api.run(f"{entity}/{project}/{run_id}")
+runs.history(keys=["train/values/Productivity (br_per_hr)", "train/episode"])
+data = [[1, 2], [4, 5], [7, 8]]
+table = wandb.Table(data=data, columns=["x", "y"])
+this_run.log(
+    {
+        "my_custom_plot_id": wandb.plot.line(
+            table, "x", "y", title="Custom Y vs X Line Plot"
+        )
+    }
+)
+
 entity, project = "qaq37", "HRC_model_based_rl_2"
 runs = api.runs(entity + "/" + project)
 

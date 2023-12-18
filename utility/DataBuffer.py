@@ -7,7 +7,7 @@ class DataBuffer:
     """
     def __init__(self):
         self.buffer = []
-        self.human_response_buffer = []
+        self.human_response_buffer = []  # human normalized human response
         self.robot_state_buffer = []
         self.productivity_buffer = []
         self.good_human_response_buffer = []
@@ -33,7 +33,7 @@ class DataBuffer:
         self.good_human_response_buffer.append(good_human_response)
         self.is_exploit_buffer.append(is_exploit)
         self.length += 1
-        if not is_exploit:
+        if not is_exploit:  # only update the normalization parameters for random sampled data points (i.e., explore)
             self.update_normalization_parameters()
 
     def sample(self, batch_size):
@@ -53,6 +53,26 @@ class DataBuffer:
         self.val_std = np.std(human_response_buffer_np_exploit[:, 0])
         self.aro_mean = np.mean(human_response_buffer_np_exploit[:, 1])
         self.aro_std = np.std(human_response_buffer_np_exploit[:, 1])
+
+    def normalize_human_response(self, human_response):
+        """ Normalize human response using the normalization parameters in the data buffer
+        :param human_response: 2D, valance and arousal
+        :return: normalized human response
+        """
+        human_response = np.array(human_response)
+        human_response[0] = (human_response[0] - self.val_mean) / self.val_std
+        human_response[1] = (human_response[1] - self.aro_mean) / self.aro_std
+        return human_response
+
+    def normalize_human_response_batch(self, human_response_batch):
+        """ Normalize human response using the normalization parameters in the data buffer
+        :param human_response_batch: (batch_size, 2), valance and arousal
+        :return: normalized human response
+        """
+        human_response_batch = np.array(human_response_batch)
+        human_response_batch[:, 0] = (human_response_batch[:, 0] - self.val_mean) / self.val_std
+        human_response_batch[:, 1] = (human_response_batch[:, 1] - self.aro_mean) / self.aro_std
+        return human_response_batch
 
     def __len__(self):
         return self.length

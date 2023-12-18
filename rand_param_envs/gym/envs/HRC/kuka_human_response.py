@@ -28,6 +28,13 @@ class KukaHumanResponse(gym.Env):
         move_spd_low_bnd, move_spd_high_bnd = [27.8, 143.8]
         arm_spd_low_bnd, arm_spd_high_bnd = [23.8, 109.1]
         low_binary, high_binary = [-1.0, 1.0]
+        self.move_spd_low_bnd = move_spd_low_bnd
+        self.move_spd_high_bnd = move_spd_high_bnd
+        self.arm_spd_low_bnd = arm_spd_low_bnd
+        self.arm_spd_high_bnd = arm_spd_high_bnd
+        self.low_binary = low_binary
+        self.high_binary = high_binary
+
         self.observation_space = spaces.Box(low=np.array([human_res_low_bnd, human_res_low_bnd, move_spd_low_bnd, arm_spd_low_bnd, low_binary, low_binary, low_binary]),
                                             high=np.array([human_res_high_bnd, human_res_high_bnd, move_spd_high_bnd, arm_spd_high_bnd, high_binary, high_binary, high_binary])
                                             )
@@ -74,7 +81,7 @@ class KukaHumanResponse(gym.Env):
         """
         return 60 / travelTime
 
-    def compute_human_response(self, curr_state, simulated=True):
+    def compute_human_response(self, curr_state, simulated=True, normalized="env"):
         """ compute human response from current state
         :param curr_state: [valence, arousal, movement_speed, arm_swing_speed, proximity, level_of_autonomy, leader_of_collaboration], optional first two elements
         :param simulated: whether to use simulated human response in csv file
@@ -97,7 +104,12 @@ class KukaHumanResponse(gym.Env):
             currStateMat = np.array(
                 [1, robot_state[0] ** 2, robot_state[0], robot_state[1] ** 2, robot_state[1], robot_state[2],
                  robot_state[3], robot_state[4], 1])
-            if self.normalized:
+
+            if normalized == "env":
+                normalized = self.normalized
+            else:
+                assert normalized in [True, False]
+            if normalized:
                 valence = np.matmul(currStateMat, self.val_coeffs)
                 arousal = np.matmul(currStateMat, self.aro_coeffs)
             else:
