@@ -10,7 +10,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu
 ##SBATCH --partition=debug
-#SBATCH --time=08:30:00
+#SBATCH --time=18:30:00
 #SBATCH --account=engin1
 ##### END preamble
 

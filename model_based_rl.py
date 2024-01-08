@@ -135,6 +135,7 @@ def look_back_in_buffer(data_buffer, look_back_episode):
 def parse_args():
     parser = argparse.ArgumentParser(description='Human Response Model')
     parser.add_argument('--device', default='cuda', help='device, cpu or cuda')
+    # Training parameters
     parser.add_argument('--grid_search_num', default=100, type=int, help='number of grid search, positive integer')
     parser.add_argument('--gt_grid_search_num', default=500, type=int, help='number of grid search for GT, positive integer')
     parser.add_argument('--random_explore_num', default=32, type=int, help='number of random explore, positive integer')
@@ -147,16 +148,20 @@ def parse_args():
     parser.add_argument('--weight_decay', default=0.001, type=float, help='weight decay, float between 0 and 1')
     # parser.add_argument('--pretrained_model', default=None, help='path to pretrained model')
     parser.add_argument('--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
-    parser.add_argument('--wandb_project', default='HRC_normalized_1', help='wandb project name')
+
+    # Wandb settings
+    parser.add_argument('--wandb_project', default='HRC_old_1', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online', type=str, help='choose from on, offline, disabled')
     parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
+
+    # Other settings
     parser.add_argument('--result_look_back_episode', default=[10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', default=False, type=bool, help='if True, assume env returns normalized human response')
+    parser.add_argument('--normalized_human_response', default=True, type=bool, help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
-    parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles (default: False if store_true)')
+    parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles')  # default: False if store_true
     parser.add_argument('--slurm_id', default=0, type=int, help='slurm id, used to mark runs')
-    parser.add_argument('--arg_notes', default="added_loss_log", type=str, help='notes for this run, will be stored in wandb')
+    parser.add_argument('--arg_notes', default="new code, but old test with pre-normalized env", type=str, help='notes for this run, will be stored in wandb')
     args = parser.parse_args()
     return args
 
