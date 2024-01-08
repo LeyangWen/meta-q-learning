@@ -14,5 +14,3 @@ def choose_device(args):
         args.device = torch.device("cpu")
     print('Using args.device:', args.device)
     return args
-
-

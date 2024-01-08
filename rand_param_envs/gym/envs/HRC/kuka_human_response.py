@@ -109,6 +109,7 @@ class KukaHumanResponse(gym.Env):
                 normalized = self.normalized
             else:
                 assert normalized in [True, False]
+
             if normalized:
                 valence = np.matmul(currStateMat, self.val_coeffs)
                 arousal = np.matmul(currStateMat, self.aro_coeffs)
