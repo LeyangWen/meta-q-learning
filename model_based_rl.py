@@ -301,7 +301,7 @@ if __name__ == '__main__':
                                 *GT_human_response_normalized,
                                 *GT_robot_state)
 
-        # c) simple strategy results (multiple rows)
+        # c) Simple strategy results (multiple rows)
         strategies = [MaxProductivityStrategy(), SearchDownStrategy()]
         for strategy in strategies:
             strategy.find_best_state(env, data_buffer)
@@ -320,7 +320,7 @@ if __name__ == '__main__':
                                     *converge_result["human_response_normalized"],
                                     *converge_result["robot_state"])
 
-        this_run.log({f"Train/Results": wandb_GT_table})
+        this_run.log({f"Train/Table/Results": wandb_GT_table})
 
         # Save the model and result
         checkpoint_file = f"{args.checkpoint_dir}/{args.wandb_project}/subject_{args.sub_id}.pt"
