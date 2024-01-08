@@ -11,11 +11,9 @@ from rand_param_envs.gym.envs.HRC.kuka_human_response import KukaHumanResponse_R
 from HumanResponseModel import HumanResponseModel
 from utility.DataBuffer import DataBuffer
 from utility.utility import *
+from utility.SimpleStrategy import MaxProductivityStrategy, SearchDownStrategy
 
 #todo: meta learning - change to one subject only, write code to determine convergence speed, write meta-eval loops
-#todo: move GT find to the end?, in that case, need to find another way to plot %
-
-# todo: implement simple strategy and best productivity strategy
 def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Sample data points from the buffer
     human_responses, robot_states = data_buffer.sample(batch_size)
@@ -153,10 +151,10 @@ def parse_args():
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online', type=str, help='choose from on, offline, disabled')
     parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
-    parser.add_argument('--result_look_back_episode', default=[5,10,20,50,100], type=list, help='number of episodes to look back for best result')
+    parser.add_argument('--result_look_back_episode', default=[10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
     parser.add_argument('--normalized_human_response', default=False, type=bool, help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
-    parser.add_argument('--debug_mode', action='store_false', help='Enable debug mode for smaller cycles (default: False)')
+    parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles (default: False if store_true)')
     parser.add_argument('--slurm_id', default=0, type=int, help='slurm id, used to mark runs')
     parser.add_argument('--arg_notes', default="added_loss_log", type=str, help='notes for this run, will be stored in wandb')
     args = parser.parse_args()
@@ -172,7 +170,7 @@ if __name__ == '__main__':
         os.environ["WANDB_API_KEY"] = args.wandb_api_key
     os.environ["WANDB_MODE"] = args.wandb_mode
     if args.debug_mode:  # small test
-        print("In debug mode")
+        print(f"In debug mode {'!'*10}")
         args.wandb_project = 'HRC_debug_1'
         args.episode_num = 100
         args.train_step_per_episode = 10
@@ -283,9 +281,10 @@ if __name__ == '__main__':
         print("Logging table in wandb...")
         # a) table header here (one row)
         wandb_GT_table = wandb.Table(
-            columns=["Subject", "Category", "Look Back Num", "Found Results",
+            columns=["Subject", "Category", "Look Back Num", "Good Human Response",
                      "Productivity", "Productivity %",
-                     "Observed Valance", "Observed Arousal", "Observed Normalized Valance", "Observed Normalized Arousal",
+                     # "Observed Valance", "Observed Arousal",
+                     "Observed Normalized Valance", "Observed Normalized Arousal",
                      "Robot Movement Speed", "Arm Swing Speed",
                      "Proximity", "Autonomy", "Collab"])
 
@@ -293,15 +292,26 @@ if __name__ == '__main__':
         GT_human_response_normalized = data_buffer.normalize_human_response(GT_human_response)
         wandb_GT_table.add_data(args.sub_id, "GT", None, None,
                                 GT_best_reward, None,
-                                *GT_human_response,
+                                # *GT_human_response,
                                 *GT_human_response_normalized,
                                 *GT_robot_state)
-        # c) look back converge results (multiple rows)
+
+        # c) simple strategy results (multiple rows)
+        strategies = [MaxProductivityStrategy(), SearchDownStrategy()]
+        for strategy in strategies:
+            strategy.find_best_state(env, data_buffer)
+            wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.good_human_response,
+                                    strategy.best_productivity, strategy.best_productivity / GT_best_reward,
+                                    # *strategy.best_human_response,
+                                    *strategy.best_human_response,  # already normalized
+                                    *strategy.best_robot_state)
+
+        # d) look back converge results (multiple rows)
         for look_back_episode in args.result_look_back_episode:  # [5,10,20,50,100]
             converge_result, found_result = look_back_in_buffer(data_buffer, look_back_episode)
             wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, found_result,
                                     converge_result["productivity"], converge_result["productivity"] / GT_best_reward,
-                                    *converge_result["human_response"],
+                                    # *converge_result["human_response"],
                                     *converge_result["human_response_normalized"],
                                     *converge_result["robot_state"])
 

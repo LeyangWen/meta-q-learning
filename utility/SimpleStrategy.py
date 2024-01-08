@@ -14,8 +14,11 @@ class SimpleStrategy:
         self.low_binary = low_binary
         self.high_binary = high_binary
 
-        self.best_state = None
+        self.best_robot_state = None
         self.best_human_response = None
+        self.best_travelTime = None
+        self.best_productivity = None
+        self.good_human_response = False
 
     def run(self):
         pass
@@ -28,14 +31,24 @@ class MaxProductivityStrategy(SimpleStrategy):
     """
     def __init__(self):
         super().__init__()
-        self.best_state = np.array(self.move_spd_high_bnd, self.arm_spd_high_bnd, self.low_binary, self.low_binary, self.high_binary)
+        self.strategy_name = 'MaxProductivity'
+        self.best_robot_state = np.array([self.move_spd_high_bnd, self.arm_spd_high_bnd, self.low_binary, self.low_binary, self.high_binary])
 
     def find_best_state(self, env, data_buffer):
-        this_human_response = env.compute_human_response(self.best_state)
+        """
+        In this case, already known the best state, so just return it
+        """
+        this_human_response = env.compute_human_response(self.best_robot_state)
         # if args.normalized_human_response, env returns normalized human response, otherwise, return actual human response
         # data_buffer knows if it still needed to be normalized, so just pass it to data_buffer.normalize_human_response
         valance, arousal = data_buffer.normalize_human_response(this_human_response)
         self.best_human_response = np.array([valance, arousal])
+        if valance> 0 and arousal > 0:
+            self.good_human_response = True
+
+        self.best_travelTime = env.calculate_traveltime(*self.best_robot_state)
+        self.best_productivity = env.calculate_productivity(self.best_travelTime)
+        return self.best_robot_state
 
 
 class SearchDownStrategy(SimpleStrategy):
@@ -45,6 +58,7 @@ class SearchDownStrategy(SimpleStrategy):
     """
     def __init__(self, num_combinations=100, binary_cutoff=0.5):
         super().__init__()
+        self.strategy_name = 'SearchDown'
         self.num_combinations = num_combinations
         self.binary_cutoff = binary_cutoff
         self.all_combinations = np.array([])
@@ -62,14 +76,17 @@ class SearchDownStrategy(SimpleStrategy):
         self.all_combinations = np.array([move_spd, arm_spd, binary_array_1, binary_array_2, binary_array_3]).T
 
     def find_best_state(self, env, data_buffer):
-        for state in self.all_combinations:
-            this_human_response = env.compute_human_response(self.best_state)
+        for robot_state in self.all_combinations:
+            this_human_response = env.compute_human_response(robot_state)
             # if args.normalized_human_response, env returns normalized human response, otherwise, return actual human response
             # data_buffer knows if it still needed to be normalized, so just pass it to data_buffer.normalize_human_response
             valance, arousal = data_buffer.normalize_human_response(this_human_response)
 
             if arousal > 0 and valance > 0:
+                self.good_human_response = True
                 break
-        self.best_state = state
+        self.best_robot_state = robot_state
         self.best_human_response = np.array([valance, arousal])
-        return state  # if no acceptable state found, return the last state
+        self.best_travelTime = env.calculate_traveltime(*self.best_robot_state)
+        self.best_productivity = env.calculate_productivity(self.best_travelTime)
+        return robot_state  # if no acceptable state found, return the last state
