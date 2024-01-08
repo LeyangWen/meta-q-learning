@@ -5,7 +5,8 @@ class DataBuffer:
     """
     This is a data buffer to store the data point for training
     """
-    def __init__(self):
+    def __init__(self, args):
+        self.normalized_human_response = args.normalized_human_response
         self.buffer = []
         self.human_response_buffer = []  # human normalized human response
         self.robot_state_buffer = []
@@ -59,20 +60,26 @@ class DataBuffer:
         :param human_response: 2D, valance and arousal
         :return: normalized human response
         """
-        human_response = np.array(human_response)
-        human_response[0] = (human_response[0] - self.val_mean) / self.val_std
-        human_response[1] = (human_response[1] - self.aro_mean) / self.aro_std
-        return human_response
+        if self.normalized_human_response:
+            return human_response
+        else:
+            human_response = np.array(human_response)
+            human_response[0] = (human_response[0] - self.val_mean) / self.val_std
+            human_response[1] = (human_response[1] - self.aro_mean) / self.aro_std
+            return human_response
 
     def normalize_human_response_batch(self, human_response_batch):
         """ Normalize human response using the normalization parameters in the data buffer
         :param human_response_batch: (batch_size, 2), valance and arousal
         :return: normalized human response
         """
-        human_response_batch = np.array(human_response_batch)
-        human_response_batch[:, 0] = (human_response_batch[:, 0] - self.val_mean) / self.val_std
-        human_response_batch[:, 1] = (human_response_batch[:, 1] - self.aro_mean) / self.aro_std
-        return human_response_batch
+        if self.normalized_human_response:
+            return human_response_batch
+        else:
+            human_response_batch = np.array(human_response_batch)
+            human_response_batch[:, 0] = (human_response_batch[:, 0] - self.val_mean) / self.val_std
+            human_response_batch[:, 1] = (human_response_batch[:, 1] - self.aro_mean) / self.aro_std
+            return human_response_batch
 
     def __len__(self):
         return self.length
