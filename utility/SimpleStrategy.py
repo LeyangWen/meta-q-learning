@@ -30,12 +30,11 @@ class MaxProductivityStrategy(SimpleStrategy):
         super().__init__()
         self.best_state = np.array(self.move_spd_high_bnd, self.arm_spd_high_bnd, self.low_binary, self.low_binary, self.high_binary)
 
-    def find_best_state(self, args, env, data_buffer):
+    def find_best_state(self, env, data_buffer):
         this_human_response = env.compute_human_response(self.best_state)
-        if args.normalized_human_response:
-            valance, arousal = this_human_response
-        else:  # env returns actual human response not normalized, normalize here using cumulative mean and std from explore data points
-            valance, arousal = data_buffer.normalize_human_response(this_human_response)
+        # if args.normalized_human_response, env returns normalized human response, otherwise, return actual human response
+        # data_buffer knows if it still needed to be normalized, so just pass it to data_buffer.normalize_human_response
+        valance, arousal = data_buffer.normalize_human_response(this_human_response)
         self.best_human_response = np.array([valance, arousal])
 
 
@@ -62,13 +61,12 @@ class SearchDownStrategy(SimpleStrategy):
         binary_array_3 = binary_array.copy()*-1  # high bnd good
         self.all_combinations = np.array([move_spd, arm_spd, binary_array_1, binary_array_2, binary_array_3]).T
 
-    def find_best_state(self, args, env, data_buffer):
+    def find_best_state(self, env, data_buffer):
         for state in self.all_combinations:
             this_human_response = env.compute_human_response(self.best_state)
-            if args.normalized_human_response:
-                valance, arousal = this_human_response
-            else:  # env returns actual human response not normalized, normalize here using cumulative mean and std from explore data points
-                valance, arousal = data_buffer.normalize_human_response(this_human_response)
+            # if args.normalized_human_response, env returns normalized human response, otherwise, return actual human response
+            # data_buffer knows if it still needed to be normalized, so just pass it to data_buffer.normalize_human_response
+            valance, arousal = data_buffer.normalize_human_response(this_human_response)
 
             if arousal > 0 and valance > 0:
                 break

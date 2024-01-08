@@ -83,10 +83,10 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
         productivity = env.calculate_productivity(travelTime)
         if GT:
             this_human_response = env.compute_human_response(this_state)
-            if args.normalized_human_response:
-                valance, arousal = this_human_response
-            else:  # env returns actual human response not normalized, normalize here using cumulative mean and std from explore data points
-                valance, arousal = data_buffer.normalize_human_response(this_human_response)
+            # if args.normalized_human_response, env returns normalized human response, otherwise, return actual human response
+            # data_buffer knows if it still needed to be normalized, so just pass it to data_buffer.normalize_human_response
+            valance, arousal = data_buffer.normalize_human_response(this_human_response)
+
         else:
             valance = valances[i]
             arousal = arousals[i]
@@ -156,7 +156,7 @@ def parse_args():
     parser.add_argument('--result_look_back_episode', default=[5,10,20,50,100], type=list, help='number of episodes to look back for best result')
     parser.add_argument('--normalized_human_response', default=False, type=bool, help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
-    parser.add_argument('--debug_mode', action='store_true', help='Enable debug mode for smaller cycles (default: False)')
+    parser.add_argument('--debug_mode', action='store_false', help='Enable debug mode for smaller cycles (default: False)')
     parser.add_argument('--slurm_id', default=0, type=int, help='slurm id, used to mark runs')
     parser.add_argument('--arg_notes', default="added_loss_log", type=str, help='notes for this run, will be stored in wandb')
     args = parser.parse_args()
@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
 
         model = HumanResponseModel().to(args.device)   # Create the model
-        data_buffer = DataBuffer()  # Create the data buffer
+        data_buffer = DataBuffer(args)  # Create the data buffer
         optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)  # Define the optimizer and the loss function
         loss_function = torch.nn.MSELoss()
         exploration_rate = args.exploration_rate
