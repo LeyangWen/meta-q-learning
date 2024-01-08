@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=HRC_normalized_slurm_1
+#SBATCH --job-name=HRC_normalized_slurm_2
 #SBATCH --output=output_slurm/eval_log_0.txt
 #SBATCH --error=output_slurm/eval_error_0txt
 #SBATCH --mail-type=BEGIN,END,FAIL
