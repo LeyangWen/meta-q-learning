@@ -294,11 +294,10 @@ if __name__ == '__main__':
                      "Proximity", "Autonomy", "Collab"])
 
         # b) GT result (one row)
-        GT_human_response_normalized = data_buffer.normalize_human_response(GT_human_response)
         wandb_GT_table.add_data(args.sub_id, "GT", None, None,
                                 GT_best_reward, None,
                                 # *GT_human_response,
-                                *GT_human_response_normalized,
+                                *GT_human_response,
                                 *GT_robot_state)
 
         # c) Simple strategy results (multiple rows)
