@@ -230,6 +230,7 @@ if __name__ == '__main__':
                             exploit_success_num += 1
                             print(f"{i}, good HR: {good_human_response}, productivity: {reward:.2f}, HR: {human_response}, robot state: {robot_state}")
                 else:  # random point since grid search got no results with positive valance and arousal
+                    is_exploit = False
                     human_response, robot_state = random_explore(args, env)
             else:  # random explore
                 human_response, robot_state = random_explore(args, env)
