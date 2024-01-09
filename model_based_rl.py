@@ -254,7 +254,7 @@ if __name__ == '__main__':
             #### log ####
 
             # store in buffer
-            data_buffer.add(robot_state, human_response, reward, good_human_response, is_exploit=is_exploit)
+            data_buffer.add(robot_state, human_response, reward, good_human_response, is_exploit=True)  # is_exploit)
             model.train()
             for training_step in range(args.train_step_per_episode):
                 if args.slurm_id == 0:
