@@ -220,9 +220,9 @@ if __name__ == '__main__':
         for i in range(args.episode_num):
             is_exploit = np.random.random() > exploration_rate
             if is_exploit:  # exploit
-                exploit_total_num += 1
                 robot_state, reward, est_human_response, have_result = grid_search(args, env, model=model)
                 if have_result:
+                    exploit_total_num += 1
                     human_response = data_buffer.normalize_human_response(env.compute_human_response(robot_state))
                     good_human_response = True if (human_response[0] > 0 and human_response[1] > 0) else False
                     with np.printoptions(precision=2):
@@ -277,7 +277,7 @@ if __name__ == '__main__':
             re_log_dict = {}
             re_log_dict["train/episode"] = i  # our custom x axis metric
             reward = log_dicts[i][f"train/values/Productivity (br_per_hr)"]
-            re_log_dict[f"train/Productivity %"] = reward / GT_best_reward
+            re_log_dict[f"train/Productivity %"] = np.nan if np.isnan(reward) else (reward / GT_best_reward) 
             this_run.log(re_log_dict)
 
 
