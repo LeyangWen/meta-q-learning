@@ -99,11 +99,11 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
 
 def random_explore(args, env):
     data_point = env.reset()
-    human_response = data_point[:2]
+    raw_human_response = data_point[:2]
     robot_state = data_point[2:]
     # travelTime = env.calculate_traveltime(data_point[2], data_point[3], data_point[4], data_point[5], data_point[6])
     # productivity = env.calculate_productivity(travelTime)
-    return human_response, robot_state
+    return raw_human_response, robot_state
 
 
 def look_back_in_buffer(data_buffer, look_back_episode):
@@ -205,9 +205,9 @@ if __name__ == '__main__':
             if args.slurm_id == 0:
                 print(f"Fill the buffer with random data points {_}/{args.random_explore_num}...", end="\r")
             data_point = env.reset()
-            human_response = data_point[:2]
+            raw_human_response = data_point[:2]
             robot_state = data_point[2:]
-            data_buffer.add(robot_state, human_response, np.nan, np.nan, is_exploit=False)
+            data_buffer.add(robot_state, raw_human_response, np.nan, np.nan, is_exploit=False)
         current_time = time.time()
         print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
 
@@ -223,7 +223,8 @@ if __name__ == '__main__':
                 robot_state, reward, est_human_response, have_result = grid_search(args, env, model=model)
                 if have_result:
                     exploit_total_num += 1
-                    human_response = data_buffer.normalize_human_response(env.compute_human_response(robot_state))
+                    raw_human_response = env.compute_human_response(robot_state)
+                    human_response = data_buffer.normalize_human_response(raw_human_response)
                     good_human_response = True if (human_response[0] > 0 and human_response[1] > 0) else False
                     with np.printoptions(precision=2):
                         if good_human_response:
@@ -231,9 +232,9 @@ if __name__ == '__main__':
                             print(f"{i}, good HR: {good_human_response}, productivity: {reward:.2f}, HR: {human_response}, robot state: {robot_state}")
                 else:  # random point since grid search got no results with positive valance and arousal
                     is_exploit = False
-                    human_response, robot_state = random_explore(args, env)
+                    raw_human_response, robot_state = random_explore(args, env)
             else:  # random explore
-                human_response, robot_state = random_explore(args, env)
+                raw_human_response, robot_state = random_explore(args, env)
 
             #### log ####
             log_dict = {}
@@ -254,7 +255,7 @@ if __name__ == '__main__':
             #### log ####
 
             # store in buffer
-            data_buffer.add(robot_state, human_response, reward, good_human_response, is_exploit=True)  # is_exploit)
+            data_buffer.add(robot_state, raw_human_response, reward, good_human_response, is_exploit=True)  # is_exploit)  # good human response might change as norm params change
             model.train()
             for training_step in range(args.train_step_per_episode):
                 if args.slurm_id == 0:
