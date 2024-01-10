@@ -23,7 +23,7 @@ class DataBuffer:
     def add(self, robot_state, human_response, productivity, good_human_response, is_exploit=True):
         """
         :param robot_state: 5D robot state, first 2 continuous, last 3 discrete
-        :param human_response: 2D, valance and arousal
+        :param human_response: 2D, valance and arousal, should be raw from env
         :param is_exploit: whether this data point is collected by exploit or explore
         """
         data_point = {'robot_state': robot_state, 'human_response': human_response}
