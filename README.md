@@ -2,6 +2,7 @@
 
 This repository contains the official implementation of the paper [Individualized Adaptive Robot Control Strategies for Cohesive Human-Robot Collaboration in Construction]().
 
+
 ## Installation
 
 1. Clone the repository:
@@ -29,6 +30,13 @@ To run the project, execute the `model_based_rl.py` script. This script trains t
 [Human response model (env) .py](rand_param_envs/gym/envs/HRC/kuka_human_response.py)
 
 [Human response model (env) .md](rand_param_envs/gym/envs/HRC/human_response/readme.md)
+
+## Overall Framework
+
+- ![](1.PNG)
+- ![](2.PNG)
+- ![](3.PNG)
+
 
 ## Acknowledgements
 
