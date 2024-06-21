@@ -197,7 +197,7 @@ def parse_args():
 
     # Wandb settings
     parser.add_argument(
-        '--wandb_project', default='HRC_normalized_slurm_2', help='wandb project name')
+        '--wandb_project', default='HRC_4HR', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online',
                         type=str, help='choose from on, offline, disabled')
@@ -212,7 +212,7 @@ def parse_args():
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
 
     # DEBUG_MODE default to be True right now
-    parser.add_argument('--debug_mode', default=True, action='store_true',
+    parser.add_argument('--debug_mode', default=False, action='store_true',
                         help='Enable debug mode for smaller cycles')  # default: False if store_true
     parser.add_argument('--slurm_id', default=0, type=int,
                         help='slurm id, used to mark runs')

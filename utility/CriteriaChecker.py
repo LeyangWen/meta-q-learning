@@ -1,3 +1,7 @@
+from __future__ import annotations  # for my python 3.8 env
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 from utility.DataBuffer import *
 
 
