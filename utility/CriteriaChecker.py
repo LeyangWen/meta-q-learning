@@ -25,14 +25,14 @@ class CriteriaChecker:
     def satisfy_engagement_vigilance(human_response, normalized=False, eng_centroids=None, vig_centroids=None, eng_normalized_centroids=None, vig_normalized_centroids=None) -> bool:
         """
         Static Method. 
-        Check if the engagement and vigilacne satify the requirement
+        Check if the engagement and vigilance satisfy the requirement
         --return: Bool indicating if satisfied
         """
 
         engagement = human_response[2]
         vigilance = human_response[3]
 
-        # Check if the response is normalized. Select accordinly
+        # Check if the response is normalized. Select accordingly
         if normalized:
             engagement_centroids = eng_normalized_centroids
             vigilance_centroids = vig_normalized_centroids
@@ -43,10 +43,10 @@ class CriteriaChecker:
         # Calculate distance from the point and the centroid
         # Find if it's closest to the middle one
         engagement_distances = np.abs(engagement_centroids - engagement)
-        vigilance_dsitances = np.abs(vigilance_centroids - vigilance)
+        vigilance_distances = np.abs(vigilance_centroids - vigilance)
 
         engagement_closest = np.argmin(engagement_distances)
-        vigilance_closest = np.argmin(vigilance_dsitances)
+        vigilance_closest = np.argmin(vigilance_distances)
 
         return engagement_closest == 1 and vigilance_closest == 1
 
