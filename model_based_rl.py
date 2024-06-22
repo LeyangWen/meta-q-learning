@@ -108,7 +108,7 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
 
         # Determine 4 -> 2 - Function, return 2 bool
         # Check if there is data_buffer, if so, using centroids stored by it
-        if data_buffer:
+        if data_buffer and not args.normalized_human_response:
             centroid_loader = data_buffer
         else:
             centroid_loader = env
