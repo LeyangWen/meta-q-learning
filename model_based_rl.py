@@ -73,7 +73,7 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
     full_states = np.array(bin_map)
     full_states[:, env.num_responses] = full_states[:, env.num_responses] * \
         (move_spd_high_bnd - move_spd_low_bnd) + move_spd_low_bnd
-    full_states[:, env.num_responses + 1] = full_states[:, env.num_responses] * \
+    full_states[:, env.num_responses + 1] = full_states[:, env.num_responses + 1] * \
         (arm_spd_high_bnd - arm_spd_low_bnd) + arm_spd_low_bnd
 
     if not GT:
@@ -115,14 +115,15 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
         is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=args.normalized_human_response,
                                                                                           eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
                                                                                           eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
-        if is_satisfy_val_aro and is_satisfy_eng_vig:
-            satisfy_type = "ALL"
-        elif is_satisfy_val_aro:
-            satisfy_type = "VAL-ARO"
-        elif is_satisfy_eng_vig:
-            satisfy_type = "ENG-VIG"
+            
         if is_satisfy_val_aro:
             if productivity > best_reward:
+                if is_satisfy_val_aro and is_satisfy_eng_vig:
+                    satisfy_type = "ALL"
+                elif is_satisfy_eng_vig:
+                    satisfy_type = "ENG-VIG"
+                else:
+                    satisfy_type = "VAL-ARO"
                 best_reward = productivity
                 best_robot_state = this_state[env.num_responses:]
                 best_human_response = human_response
