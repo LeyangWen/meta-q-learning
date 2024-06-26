@@ -13,11 +13,11 @@ class DataBuffer:
         self.human_response_buffer = []  # human normalized human response
         self.robot_state_buffer = []
         self.productivity_buffer = []
-        
+
         self.good_human_response_all_buffer = []
         self.good_human_response_val_aro_buffer = []
         self.good_human_response_eng_vig_buffer = []
-       
+
         self.is_exploit_buffer = []
         self.length = 0
 
@@ -30,7 +30,7 @@ class DataBuffer:
         self.eng_std = 0
         self.eng_mean = 0
         self.eng_centroids = np.zeros(3)
-        
+
         # NOTSURE RN:
         self.eng_normalized_centroids = np.zeros(3)
 
@@ -40,7 +40,7 @@ class DataBuffer:
 
         # NOTSURE RN:
         self.vig_normalized_centroids = np.zeros(3)
-        
+
     def add(self, robot_state, human_response, productivity, good_human_response_all, good_human_response_val_aro, good_human_response_eng_vig, is_exploit=True):
         """
         :param robot_state: 5D robot state, first 2 continuous, last 3 discrete
@@ -54,9 +54,11 @@ class DataBuffer:
         self.robot_state_buffer.append(robot_state)
         self.productivity_buffer.append(productivity)
         self.good_human_response_all_buffer.append(good_human_response_all)
-        self.good_human_response_val_aro_buffer.append(good_human_response_val_aro)
-        self.good_human_response_eng_vig_buffer.append(good_human_response_eng_vig)
-        
+        self.good_human_response_val_aro_buffer.append(
+            good_human_response_val_aro)
+        self.good_human_response_eng_vig_buffer.append(
+            good_human_response_eng_vig)
+
         self.is_exploit_buffer.append(is_exploit)
         self.length += 1
         # only update the normalization parameters for random sampled data points (i.e., explore)
@@ -91,21 +93,20 @@ class DataBuffer:
         engagement_clusters = k_means_cluster.cluster_centers_
         engagement_clusters = engagement_clusters.flatten()
         sorted_engagement_clusters = np.sort(engagement_clusters)
-        self.eng_centroids = sorted_engagement_clusters 
-        
-        # NOTSURE RN:
-        self.eng_normalized_centroids = (self.eng_centroids - self.eng_mean) / self.eng_std
-        
+        self.eng_centroids = sorted_engagement_clusters
+        self.eng_normalized_centroids = (
+            self.eng_centroids - self.eng_mean) / self.eng_std
+
         # Find the Centroid values for the vigilance
-        k_means_cluster.fit((human_responses_buffer_np_exploit[:,3]).reshape(-1,1))
+        k_means_cluster.fit(
+            (human_responses_buffer_np_exploit[:, 3]).reshape(-1, 1))
         vigilance_clusters = k_means_cluster.cluster_centers_
         vigilance_clusters = vigilance_clusters.flatten()
         sorted_vigilance_clusters = np.sort(vigilance_clusters)
         self.vig_centroids = sorted_vigilance_clusters
+        self.vig_normalized_centroids = (
+            self.vig_centroids - self.vig_mean) / self.vig_std
 
-        # NOTSURE RN:
-        self.vig_normalized_centroids = (self.vig_centroids - self.vig_mean) / self.vig_std
-        
     def update_normalization_parameters(self):
         """ Calculate the normalization parameters for the human response in the data buffer so far, but only when is_exploit is False
         :return: val_mean, val_std, aro_mean, aro_std
@@ -125,9 +126,9 @@ class DataBuffer:
         self.vig_std = np.std(human_response_buffer_np_exploit[:, 3])
 
         # Find the three centroids as well
-        if(len(human_response_buffer_np_exploit) >= 3):
+        if (len(human_response_buffer_np_exploit) >= 3):
             self.calculate_clusters(human_response_buffer_np_exploit)
-        
+
     def normalize_human_response(self, human_response):
         """ Normalize human response using the normalization parameters in the data buffer
         :param human_response: 2D, valance and arousal, engagement and vigilance
@@ -173,4 +174,3 @@ class DataBuffer:
 
     def __len__(self):
         return self.length
-

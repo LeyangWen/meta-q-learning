@@ -1,8 +1,7 @@
 from __future__ import annotations  # for my python 3.8 env
+from utility.DataBuffer import *
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
-from utility.DataBuffer import *
 
 
 class CriteriaChecker:
@@ -39,7 +38,7 @@ class CriteriaChecker:
         else:
             engagement_centroids = eng_centroids
             vigilance_centroids = vig_centroids
-            
+
         # Calculate distance from the point and the centroid
         # Find if it's closest to the middle one
         engagement_distances = np.abs(engagement_centroids - engagement)

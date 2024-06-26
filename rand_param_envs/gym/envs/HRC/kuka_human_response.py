@@ -38,7 +38,7 @@ class KukaHumanResponse(gym.Env):
 
         # Modified: the first num_responses will be placeholders for the reponses
         self.observation_space = spaces.Box(low=np.array([human_res_low_bnd] * num_responses + [move_spd_low_bnd, arm_spd_low_bnd, low_binary, low_binary, low_binary]),
-                                            high=np.array([human_res_high_bnd] * num_responses +  [move_spd_high_bnd,
+                                            high=np.array([human_res_high_bnd] * num_responses + [move_spd_high_bnd,
                                                           arm_spd_high_bnd, high_binary, high_binary, high_binary])
                                             )
 
@@ -154,7 +154,6 @@ class KukaHumanResponse(gym.Env):
         self.state[:self.num_responses] = self.compute_human_response(
             self.state)
 
-        
         self.done = False
         self.steps_taken = 0
         self.total_time = 0
@@ -443,7 +442,7 @@ if __name__ == '__main__':
                for a in continuous_bin for b in continuous_bin for x in binary_bin for y in binary_bin for z in binary_bin]
     move_spd_low_bnd, move_spd_high_bnd = [27.8, 143.8]
     arm_spd_low_bnd, arm_spd_high_bnd = [23.8, 109.1]
-    
+
     for subject_id in range(18):
         print('------------------', subject_id, '------------------')
         largest_productivity = 0
@@ -467,8 +466,8 @@ if __name__ == '__main__':
 
             human_response = env.compute_human_response(state)
             is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=env.normalized,
-                                                                    eng_centroids=env.eng_centroids, vig_centroids=env.vig_centroids,
-                                                                    eng_normalized_centroids=env.eng_normalized_centroids, vig_normalized_centroids=env.vig_normalized_centroids)
+                                                                                              eng_centroids=env.eng_centroids, vig_centroids=env.vig_centroids,
+                                                                                              eng_normalized_centroids=env.eng_normalized_centroids, vig_normalized_centroids=env.vig_normalized_centroids)
             if is_satisfy_val_aro:
                 if productivity > largest_productivity:
                     largest_productivity = productivity

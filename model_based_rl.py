@@ -87,6 +87,8 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
     best_human_response = []
     have_result = False
     satisfy_type = None
+    no_all_satisfy = True
+    
     for i in range(len(bin_map)):
         this_state = full_states[i]
         travelTime = env.calculate_traveltime(this_state[env.num_responses], this_state[env.num_responses+1],
@@ -115,19 +117,22 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
         is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=args.normalized_human_response,
                                                                                           eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
                                                                                           eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
-            
-        if is_satisfy_val_aro:
-            if productivity > best_reward:
-                if is_satisfy_val_aro and is_satisfy_eng_vig:
-                    satisfy_type = "ALL"
-                elif is_satisfy_eng_vig:
-                    satisfy_type = "ENG-VIG"
-                else:
-                    satisfy_type = "VAL-ARO"
+        if is_satisfy_val_aro and is_satisfy_eng_vig:
+            if productivity > best_reward or no_all_satisfy:
                 best_reward = productivity
                 best_robot_state = this_state[env.num_responses:]
                 best_human_response = human_response
                 have_result = True
+                no_all_satisfy = False
+                satisfy_type = "ALL"
+                
+        elif is_satisfy_val_aro and no_all_satisfy:
+            if productivity > best_reward:
+                best_reward = productivity
+                best_robot_state = this_state[env.num_responses:]
+                best_human_response = human_response
+                have_result = True
+                satisfy_type = "VAL-ARO"
 
     return best_robot_state, best_reward, best_human_response, have_result, satisfy_type
 
