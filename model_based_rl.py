@@ -105,12 +105,12 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
             valance = valances[i]
             arousal = arousals[i]
             engagement = engagements[i]
-            vigiance = vigilances[i]
-            human_response = [valance, arousal, engagement, vigiance]
+            vigilance = vigilances[i]
+            human_response = [valance, arousal, engagement, vigilance]
 
         # Determine 4 -> 2 - Function, return 2 bool
         # Check if there is data_buffer, if so, using centroids stored by it
-        if data_buffer:
+        if data_buffer and not args.normalized_human_response:
             centroid_loader = data_buffer
         else:
             centroid_loader = env
@@ -218,7 +218,7 @@ def parse_args():
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
 
     # DEBUG_MODE default to be True right now
-    parser.add_argument('--debug_mode', default=False, action='store_true',
+    parser.add_argument('--debug_mode', default=True, action='store_true',
                         help='Enable debug mode for smaller cycles')  # default: False if store_true
     parser.add_argument('--slurm_id', default=0, type=int,
                         help='slurm id, used to mark runs')
@@ -312,7 +312,7 @@ if __name__ == '__main__':
                         if good_human_response_val_aro:
                             exploit_success_num += 1
                             print(
-                                f"{i}, good HR_ALL: {good_human_response_all}, good_HR_VAL_ARO: {good_human_response_val_aro}, good_HR_ENG_VIG: {good_human_response_eng_vig},  productivity: {reward:.2f}, HR: {human_response}, robot state: {robot_state}")
+                                f"{i}, good_HR_ALL:{good_human_response_all}, good_VAL_ARO:{good_human_response_val_aro}, good_ENG_VIG:{good_human_response_eng_vig}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}", end="\r")
                 else:  # random point since grid search got no results with positive valance and arousal
                     is_exploit = False
                     raw_human_response, robot_state = random_explore(args, env)
@@ -359,6 +359,8 @@ if __name__ == '__main__':
         # Grid search must be done after training if using normalization parameters from random search in data buffer
         GT_robot_state, GT_best_reward, GT_human_response, GT_have_result, GT_satisfy_type = grid_search(
             args, env, data_buffer=data_buffer, GT=True)
+        print()
+        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GT @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         if GT_have_result:
             print(
                 f"productivity: {GT_best_reward:.2f}, human response: {GT_human_response}, robot state: {GT_robot_state}, satisfy type: {GT_satisfy_type}")

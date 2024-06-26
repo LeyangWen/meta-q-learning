@@ -369,8 +369,8 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
     # Modify the tasks here for vigilacne and engagement
     def sample_tasks(self, num_tasks):
         BASE_FOLDER = 'rand_param_envs/gym/envs/HRC/human_response/'
-        valence_file = os.path.join(BASE_FOLDER, 'valence_merge.csv')
-        arousal_file = os.path.join(BASE_FOLDER, 'arousal_merge.csv')
+        valence_file = os.path.join(BASE_FOLDER, 'valence.csv')
+        arousal_file = os.path.join(BASE_FOLDER, 'arousal.csv')
         engagement_file = os.path.join(BASE_FOLDER, 'engagement.csv')
         vigilance_file = os.path.join(BASE_FOLDER, "vigilance.csv")
         tasks = []
