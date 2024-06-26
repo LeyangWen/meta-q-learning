@@ -148,7 +148,7 @@ class KukaHumanResponse(gym.Env):
     def _reset(self):
         self.state = self.observation_space.sample()
         # convert last three to binary -1, 1
-        self.state[self.num_responses:] = np.sign(self.state[4:])
+        self.state[-3:] = np.sign(self.state[-3:])
 
         # Add the first number of responses to the state
         self.state[:self.num_responses] = self.compute_human_response(
