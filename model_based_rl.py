@@ -200,14 +200,14 @@ def parse_args():
     parser.add_argument(
         '--wandb_project', default='HRC_4HR', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
-    parser.add_argument('--wandb_mode', default='disabled',
+    parser.add_argument('--wandb_mode', default='online',
                         type=str, help='choose from on, offline, disabled')
     parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
 
     # Other settings
     parser.add_argument('--result_look_back_episode', default=[
                         10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', default=True, type=bool,
+    parser.add_argument('--normalized_human_response', default=False, type=bool,
                         help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
@@ -307,7 +307,7 @@ if __name__ == '__main__':
                         if good_human_response_val_aro:
                             exploit_success_num += 1
                             print(
-                                f"{i}, good HR_ALL: {good_human_response_all}, good_HR_VAL_ARO: {good_human_response_val_aro}, good_HR_ENG_VIG: {good_human_response_eng_vig},  productivity: {reward:.2f}, HR: {human_response}, robot state: {robot_state}")
+                                f"{i}, good_HR_ALL:{good_human_response_all}, good_VAL_ARO:{good_human_response_val_aro}, good_ENG_VIG:{good_human_response_eng_vig}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}", end="\r")
                 else:  # random point since grid search got no results with positive valance and arousal
                     is_exploit = False
                     raw_human_response, robot_state = random_explore(args, env)
@@ -354,6 +354,8 @@ if __name__ == '__main__':
         # Grid search must be done after training if using normalization parameters from random search in data buffer
         GT_robot_state, GT_best_reward, GT_human_response, GT_have_result, GT_satisfy_type = grid_search(
             args, env, data_buffer=data_buffer, GT=True)
+        print()
+        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GT @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         if GT_have_result:
             print(
                 f"productivity: {GT_best_reward:.2f}, human response: {GT_human_response}, robot state: {GT_robot_state}, satisfy type: {GT_satisfy_type}")
