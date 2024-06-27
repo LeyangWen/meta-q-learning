@@ -366,7 +366,7 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
     def reset(self):
         return self._reset()
 
-    # Modify the tasks here for vigilacne and engagement
+    # Modify the tasks here for vigilance and engagement
     def sample_tasks(self, num_tasks):
         BASE_FOLDER = 'rand_param_envs/gym/envs/HRC/human_response/'
         valence_file = os.path.join(BASE_FOLDER, 'valence.csv')
@@ -416,19 +416,15 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.eng_coeffs = task['eng_coeffs']
         self.eng_mean = task['eng_mean']
         self.eng_std = task['eng_std']
-        self.eng_centroids = [task['eng_centroid0'],
-                              task['eng_centroid1'], task['eng_centroid2']]
-        self.eng_normalized_centroids = (
-            self.eng_centroids - self.eng_mean) / self.eng_std
+        self.eng_normalized_centroids = np.array([task['eng_centroid0'], task['eng_centroid1'], task['eng_centroid2']])
+        self.eng_centroids = (self.eng_normalized_centroids * self.eng_std + self.eng_mean)
 
         # Vigilance Engagement
         self.vig_coeffs = task['vig_coeffs']
         self.vig_mean = task['vig_mean']
         self.vig_std = task['vig_std']
-        self.vig_centroids = [task['vig_centroid0'],
-                              task['vig_centroid1'], task['vig_centroid2']]
-        self.vig_normalized_centroids = (
-            self.vig_centroids - self.vig_mean) / self.vig_std
+        self.vig_normalized_centroids = np.array([task['vig_centroid0'], task['vig_centroid1'], task['vig_centroid2']])
+        self.vig_centroids = (self.eng_normalized_centroids * self.vig_std + self.vig_mean)
 
 
 if __name__ == '__main__':
@@ -437,7 +433,7 @@ if __name__ == '__main__':
     continuous_bin = np.arange(0, 1.01, 0.01)
     binary_bin = [0, 1]
 
-    # For the bin_map, we would initialze the first "num_responses" as 0
+    # For the bin_map, we would initialize the first "num_responses" as 0
     bin_map = [(0,) * env.num_responses + (a, b, x, y, z)
                for a in continuous_bin for b in continuous_bin for x in binary_bin for y in binary_bin for z in binary_bin]
     move_spd_low_bnd, move_spd_high_bnd = [27.8, 143.8]
