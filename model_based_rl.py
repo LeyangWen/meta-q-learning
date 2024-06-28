@@ -203,23 +203,22 @@ def parse_args():
 
     # Wandb settings
     parser.add_argument(
-        '--wandb_project', default='HRC_4HR_all_1', help='wandb project name')
+        '--wandb_project', default='HRC_4HR_all_2', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
-    parser.add_argument('--wandb_mode', default='online',
+    parser.add_argument('--wandb_mode', default='disabled',
                         type=str, help='choose from on, offline, disabled')
     parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
 
     # Other settings
     parser.add_argument('--result_look_back_episode', default=[
                         10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', default=False, type=bool,
+    parser.add_argument('--normalized_human_response', default=True, type=bool,
                         help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
 
-    # DEBUG_MODE default to be True right now
-    parser.add_argument('--debug_mode', default=False, action='store_true',
-                        help='Enable debug mode for smaller cycles')  # default: False if store_true
+    parser.add_argument('--debug_mode', default=False,
+                        help='Enable debug mode for smaller cycles')
     parser.add_argument('--slurm_id', default=0, type=int,
                         help='slurm id, used to mark runs')
     parser.add_argument('--arg_notes', default="increased number of random explore upfront to help with estimating mean",
@@ -268,93 +267,93 @@ if __name__ == '__main__':
         loss_function = torch.nn.MSELoss()
         exploration_rate = args.exploration_rate
 
-        # Step 1: fill the buffer with random data points
-        for _ in range(args.random_explore_num):
-            if args.slurm_id == 0:
-                print(
-                    f"Fill the buffer with random data points {_}/{args.random_explore_num}...", end="\r")
-            data_point = env.reset()
-            raw_human_response = data_point[:env.num_responses]
-            robot_state = data_point[env.num_responses:]
-            data_buffer.add(robot_state, raw_human_response,
-                            np.nan, np.nan, np.nan, np.nan, is_exploit=False)
-        current_time = time.time()
-        print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
-
-        # Step 2: run n episodes of HRC interaction, generate data points and train the model in each episode
-        exploit_success_num = 0
-        exploit_total_num = 0
-        reward = np.nan
-        good_human_response_all = np.nan
-        good_human_response_val_aro = np.nan
-        good_human_response_eng_vig = np.nan
-        log_dicts = []
-        for i in range(args.episode_num):
-            is_exploit = np.random.random() > exploration_rate
-            if is_exploit:  # exploit
-                robot_state, reward, est_human_response, have_result, est_satisfy_type = grid_search(
-                    args, env, model=model)
-                if have_result:
-                    exploit_total_num += 1
-                    raw_human_response = env.compute_human_response(
-                        robot_state)
-                    human_response = data_buffer.normalize_human_response(
-                        raw_human_response)
-
-                    is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=args.normalized_human_response,
-                                                                                                      eng_centroids=env.eng_centroids, vig_centroids=env.vig_centroids,
-                                                                                                      eng_normalized_centroids=env.eng_normalized_centroids, vig_normalized_centroids=env.vig_normalized_centroids)
-                    good_human_response_all = is_satisfy_eng_vig and is_satisfy_val_aro
-                    good_human_response_val_aro = is_satisfy_val_aro
-                    good_human_response_eng_vig = is_satisfy_eng_vig
-
-                    with np.printoptions(precision=2):
-                        if good_human_response_val_aro:
-                            exploit_success_num += 1
-                            print(
-                                f"{i}, good_HR_ALL:{good_human_response_all}, good_VAL_ARO:{good_human_response_val_aro}, good_ENG_VIG:{good_human_response_eng_vig}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}", end="\r")
-                else:  # random point since grid search got no results with positive valance and arousal
-                    is_exploit = False
-                    raw_human_response, robot_state = random_explore(args, env)
-            else:  # random explore
-                raw_human_response, robot_state = random_explore(args, env)
-
-            #### log ####
-            log_dict = {}
-            log_dict["train/episode"] = i  # our custom x axis metric
-            log_dict[f"train/time (s)"] = time.time() - current_time
-            log_dict[f"train/Good human response %"] = exploit_success_num / \
-                (exploit_total_num + 1e-6)
-            # can not have "." in name or wandb plot have wrong x axis
-            log_dict[f"train/values/Productivity (br_per_hr)"] = reward
-            log_dict[f"train/values/Robot movement speed (m_per_s)"] = robot_state[0]
-            log_dict[f"train/values/Robot arm speed (m_per_s)"] = robot_state[1]
-
-            log_dict[f"train/bool/Is exploit"] = float(is_exploit*1.0)
-            log_dict[f"train/bool/Good human response all"] = float(
-                good_human_response_all*1.0)
-            log_dict[f"train/bool/Good human response val-aro"] = float(
-                good_human_response_val_aro*1.0)
-            log_dict[f"train/bool/Good human response eng-vig"] = float(
-                good_human_response_eng_vig*1.0)
-
-            this_run.log(log_dict)
-            log_dicts.append(log_dict)
-            #### log ####
-
-            # store in buffer
-            # is_exploit)  # good human response might change as norm params change
-            data_buffer.add(robot_state, raw_human_response,
-                            reward, good_human_response_all, good_human_response_val_aro, good_human_response_eng_vig, is_exploit=True)
-            model.train()
-            for training_step in range(args.train_step_per_episode):
-                if args.slurm_id == 0:
-                    print(f"Training step {training_step}...", end="\r")
-                train_step(args, model, data_buffer, optimizer,
-                           loss_function, args.train_batch_size)
-
-            # update epsilon
-            exploration_rate = exploration_rate * args.exploration_decay_rate
+        # # Step 1: fill the buffer with random data points
+        # for _ in range(args.random_explore_num):
+        #     if args.slurm_id == 0:
+        #         print(
+        #             f"Fill the buffer with random data points {_}/{args.random_explore_num}...", end="\r")
+        #     data_point = env.reset()
+        #     raw_human_response = data_point[:env.num_responses]
+        #     robot_state = data_point[env.num_responses:]
+        #     data_buffer.add(robot_state, raw_human_response,
+        #                     np.nan, np.nan, np.nan, np.nan, is_exploit=False)
+        # current_time = time.time()
+        # print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
+        #
+        # # Step 2: run n episodes of HRC interaction, generate data points and train the model in each episode
+        # exploit_success_num = 0
+        # exploit_total_num = 0
+        # reward = np.nan
+        # good_human_response_all = np.nan
+        # good_human_response_val_aro = np.nan
+        # good_human_response_eng_vig = np.nan
+        # log_dicts = []
+        # for i in range(args.episode_num):
+        #     is_exploit = np.random.random() > exploration_rate
+        #     if is_exploit:  # exploit
+        #         robot_state, reward, est_human_response, have_result, est_satisfy_type = grid_search(
+        #             args, env, model=model)
+        #         if have_result:
+        #             exploit_total_num += 1
+        #             raw_human_response = env.compute_human_response(
+        #                 robot_state)
+        #             human_response = data_buffer.normalize_human_response(
+        #                 raw_human_response)
+        #
+        #             is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=args.normalized_human_response,
+        #                                                                                               eng_centroids=env.eng_centroids, vig_centroids=env.vig_centroids,
+        #                                                                                               eng_normalized_centroids=env.eng_normalized_centroids, vig_normalized_centroids=env.vig_normalized_centroids)
+        #             good_human_response_all = is_satisfy_eng_vig and is_satisfy_val_aro
+        #             good_human_response_val_aro = is_satisfy_val_aro
+        #             good_human_response_eng_vig = is_satisfy_eng_vig
+        #
+        #             with np.printoptions(precision=2):
+        #                 if good_human_response_val_aro:
+        #                     exploit_success_num += 1
+        #                     print(
+        #                         f"{i}, good_HR_ALL:{good_human_response_all}, good_VAL_ARO:{good_human_response_val_aro}, good_ENG_VIG:{good_human_response_eng_vig}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}", end="\r")
+        #         else:  # random point since grid search got no results with positive valance and arousal
+        #             is_exploit = False
+        #             raw_human_response, robot_state = random_explore(args, env)
+        #     else:  # random explore
+        #         raw_human_response, robot_state = random_explore(args, env)
+        #
+        #     #### log ####
+        #     log_dict = {}
+        #     log_dict["train/episode"] = i  # our custom x axis metric
+        #     log_dict[f"train/time (s)"] = time.time() - current_time
+        #     log_dict[f"train/Good human response %"] = exploit_success_num / \
+        #         (exploit_total_num + 1e-6)
+        #     # can not have "." in name or wandb plot have wrong x axis
+        #     log_dict[f"train/values/Productivity (br_per_hr)"] = reward
+        #     log_dict[f"train/values/Robot movement speed (m_per_s)"] = robot_state[0]
+        #     log_dict[f"train/values/Robot arm speed (m_per_s)"] = robot_state[1]
+        #
+        #     log_dict[f"train/bool/Is exploit"] = float(is_exploit*1.0)
+        #     log_dict[f"train/bool/Good human response all"] = float(
+        #         good_human_response_all*1.0)
+        #     log_dict[f"train/bool/Good human response val-aro"] = float(
+        #         good_human_response_val_aro*1.0)
+        #     log_dict[f"train/bool/Good human response eng-vig"] = float(
+        #         good_human_response_eng_vig*1.0)
+        #
+        #     this_run.log(log_dict)
+        #     log_dicts.append(log_dict)
+        #     #### log ####
+        #
+        #     # store in buffer
+        #     # is_exploit)  # good human response might change as norm params change
+        #     data_buffer.add(robot_state, raw_human_response,
+        #                     reward, good_human_response_all, good_human_response_val_aro, good_human_response_eng_vig, is_exploit=True)
+        #     model.train()
+        #     for training_step in range(args.train_step_per_episode):
+        #         if args.slurm_id == 0:
+        #             print(f"Training step {training_step}...", end="\r")
+        #         train_step(args, model, data_buffer, optimizer,
+        #                    loss_function, args.train_batch_size)
+        #
+        #     # update epsilon
+        #     exploration_rate = exploration_rate * args.exploration_decay_rate
 
         # Grid search must be done after training if using normalization parameters from random search in data buffer
         GT_robot_state, GT_best_reward, GT_human_response, GT_have_result, GT_satisfy_type = grid_search(
@@ -369,69 +368,69 @@ if __name__ == '__main__':
         print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GT @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         print()
 
-        # % calculation needs to be put after the GT calculation
-        for i in range(args.episode_num):
-            re_log_dict = {}
-            re_log_dict["train/episode"] = i  # our custom x axis metric
-            reward = log_dicts[i][f"train/values/Productivity (br_per_hr)"]
-            re_log_dict[f"train/Productivity %"] = np.nan if np.isnan(
-                reward) else (reward / GT_best_reward)
-            this_run.log(re_log_dict)
-
-        # step 3: look back few episodes to find best result for this subject
-        #### find converge and log ####
-        print(
-            f"Best result in the looking back {args.result_look_back_episode} episode in buffer")
-        print("Logging table in wandb...")
-        # a) table header here (one row)
-        # MODIFY: Add the 2 columns for engagement and vigilance
-        wandb_GT_table = wandb.Table(
-            columns=["Subject", "Category", "Look Back Num", "Good Human Response",
-                     "Productivity", "Productivity %",
-                     # "Observed Valance", "Observed Arousal",
-                     "Observed Normalized Valance", "Observed Normalized Arousal", "Observed Normalized Engagement", "Observed Normalized Vigilance",
-                     "Robot Movement Speed", "Arm Swing Speed",
-                     "Proximity", "Autonomy", "Collab"])
-
-        # b) GT result (one row)
-        wandb_GT_table.add_data(args.sub_id, "GT", None, None,
-                                GT_best_reward, None,
-                                # *GT_human_response,
-                                *GT_human_response,
-                                *GT_robot_state)
-
-        # c) Simple strategy results (multiple rows)
-        strategies = [MaxProductivityStrategy(), SearchDownStrategy()]
-        for strategy in strategies:
-            strategy.find_best_state(env, data_buffer)
-            wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.good_human_response,
-                                    strategy.best_productivity, strategy.best_productivity / GT_best_reward,
-                                    # *strategy.best_human_response,
-                                    *strategy.best_human_response,  # already normalized
-                                    *strategy.best_robot_state)
-
-        # d) look back converge results (multiple rows)
-        # [5,10,20,50,100]
-        for look_back_episode in args.result_look_back_episode:
-            converge_result, found_result = look_back_in_buffer(
-                data_buffer, look_back_episode)
-            wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, found_result,
-                                    converge_result["productivity"], converge_result["productivity"] /
-                                    GT_best_reward,
-                                    # *converge_result["human_response"],
-                                    *converge_result["human_response_normalized"],
-                                    *converge_result["robot_state"])
-
-        this_run.log({f"Train/Table/Results": wandb_GT_table})
-
-        # Save the model and result
-        checkpoint_file = f"{args.checkpoint_dir}/{args.wandb_project}/subject_{args.sub_id}.pt"
-        if not os.path.exists(os.path.dirname(checkpoint_file)):
-            os.makedirs(os.path.dirname(checkpoint_file))
-        torch.save(model.state_dict(), checkpoint_file)
-
-        elapsed_time = time.time() - start_time
-        subject_time = time.time() - current_time
-        current_time = time.time()
-        print(f"[{(elapsed_time)/60:.2f} min] Subject {subject_id} finished, subject time: {(subject_time)/60:.2f} min")
+        # # % calculation needs to be put after the GT calculation
+        # for i in range(args.episode_num):
+        #     re_log_dict = {}
+        #     re_log_dict["train/episode"] = i  # our custom x axis metric
+        #     reward = log_dicts[i][f"train/values/Productivity (br_per_hr)"]
+        #     re_log_dict[f"train/Productivity %"] = np.nan if np.isnan(
+        #         reward) else (reward / GT_best_reward)
+        #     this_run.log(re_log_dict)
+        #
+        # # step 3: look back few episodes to find best result for this subject
+        # #### find converge and log ####
+        # print(
+        #     f"Best result in the looking back {args.result_look_back_episode} episode in buffer")
+        # print("Logging table in wandb...")
+        # # a) table header here (one row)
+        # # MODIFY: Add the 2 columns for engagement and vigilance
+        # wandb_GT_table = wandb.Table(
+        #     columns=["Subject", "Category", "Look Back Num", "Good Human Response",
+        #              "Productivity", "Productivity %",
+        #              # "Observed Valance", "Observed Arousal",
+        #              "Observed Normalized Valance", "Observed Normalized Arousal", "Observed Normalized Engagement", "Observed Normalized Vigilance",
+        #              "Robot Movement Speed", "Arm Swing Speed",
+        #              "Proximity", "Autonomy", "Collab"])
+        #
+        # # b) GT result (one row)
+        # wandb_GT_table.add_data(args.sub_id, "GT", None, None,
+        #                         GT_best_reward, None,
+        #                         # *GT_human_response,
+        #                         *GT_human_response,
+        #                         *GT_robot_state)
+        #
+        # # c) Simple strategy results (multiple rows)
+        # strategies = [MaxProductivityStrategy(), SearchDownStrategy()]
+        # for strategy in strategies:
+        #     strategy.find_best_state(env, data_buffer)
+        #     wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.good_human_response,
+        #                             strategy.best_productivity, strategy.best_productivity / GT_best_reward,
+        #                             # *strategy.best_human_response,
+        #                             *strategy.best_human_response,  # already normalized
+        #                             *strategy.best_robot_state)
+        #
+        # # d) look back converge results (multiple rows)
+        # # [5,10,20,50,100]
+        # for look_back_episode in args.result_look_back_episode:
+        #     converge_result, found_result = look_back_in_buffer(
+        #         data_buffer, look_back_episode)
+        #     wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, found_result,
+        #                             converge_result["productivity"], converge_result["productivity"] /
+        #                             GT_best_reward,
+        #                             # *converge_result["human_response"],
+        #                             *converge_result["human_response_normalized"],
+        #                             *converge_result["robot_state"])
+        #
+        # this_run.log({f"Train/Table/Results": wandb_GT_table})
+        #
+        # # Save the model and result
+        # checkpoint_file = f"{args.checkpoint_dir}/{args.wandb_project}/subject_{args.sub_id}.pt"
+        # if not os.path.exists(os.path.dirname(checkpoint_file)):
+        #     os.makedirs(os.path.dirname(checkpoint_file))
+        # torch.save(model.state_dict(), checkpoint_file)
+        #
+        # elapsed_time = time.time() - start_time
+        # subject_time = time.time() - current_time
+        # current_time = time.time()
+        # print(f"[{(elapsed_time)/60:.2f} min] Subject {subject_id} finished, subject time: {(subject_time)/60:.2f} min")
         this_run.finish()
