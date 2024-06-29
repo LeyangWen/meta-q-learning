@@ -424,7 +424,7 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.vig_mean = task['vig_mean']
         self.vig_std = task['vig_std']
         self.vig_normalized_centroids = np.array([task['vig_centroid0'], task['vig_centroid1'], task['vig_centroid2']])
-        self.vig_centroids = (self.eng_normalized_centroids * self.vig_std + self.vig_mean)
+        self.vig_centroids = (self.vig_normalized_centroids * self.vig_std + self.vig_mean)
 
 
 if __name__ == '__main__':
