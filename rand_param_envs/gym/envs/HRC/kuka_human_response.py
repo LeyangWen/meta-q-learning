@@ -461,6 +461,7 @@ if __name__ == '__main__':
             productivity = env.calculate_productivity(traveltime)
 
             human_response = env.compute_human_response(state)
+            # TODO: This may need some modifications
             is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=env.normalized,
                                                                                               eng_centroids=env.eng_centroids, vig_centroids=env.vig_centroids,
                                                                                               eng_normalized_centroids=env.eng_normalized_centroids, vig_normalized_centroids=env.vig_normalized_centroids)

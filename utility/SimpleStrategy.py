@@ -1,5 +1,6 @@
 import numpy as np
 from utility.CriteriaChecker import CriteriaChecker
+from utility.OptimalResult import OptimalResult
 
 
 class SimpleStrategy:
@@ -15,13 +16,8 @@ class SimpleStrategy:
         self.low_binary = low_binary
         self.high_binary = high_binary
 
-        self.best_robot_state = None
-        self.best_human_response = None
-        self.best_travelTime = None
-        self.best_productivity = None
-        self.good_human_response = False
-        self.best_satisfy_number = 0
-        self.best_satisfy_type = ""
+        # Optimal Result Object to stores best infos
+        self.optimal_result = OptimalResult()
 
     def run(self):
         pass
@@ -36,31 +32,38 @@ class MaxProductivityStrategy(SimpleStrategy):
     def __init__(self):
         super().__init__()
         self.strategy_name = 'MaxProductivity'
-        self.best_robot_state = np.array(
+        self.optimal_result.best_robot_state = np.array(
             [self.move_spd_high_bnd, self.arm_spd_high_bnd, self.low_binary, self.low_binary, self.high_binary])
 
     def find_best_state(self, env, data_buffer):
         """
         In this case, already known the best state, so just return it
         """
-        this_human_response = env.compute_human_response(self.best_robot_state)
+        this_human_response = env.compute_human_response(
+            self.optimal_result.best_robot_state)
         # if args.normalized_human_response, env returns normalized human response, otherwise, return actual human response
         # data_buffer knows if it still needed to be normalized, so just pass it to data_buffer.normalize_human_response
 
         # MODIFY: Just use human_response right now
         human_response = data_buffer.normalize_human_response(
             this_human_response)
-        self.best_human_response = human_response
-        is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=env.normalized,
-                                                                                          eng_centroids=data_buffer.eng_centroids, vig_centroids=data_buffer.vig_centroids,
-                                                                                          eng_normalized_centroids=data_buffer.eng_normalized_centroids, vig_normalized_centroids=data_buffer.vig_normalized_centroids)
-        if is_satisfy_val_aro:
-            self.good_human_response = True
+        self.optimal_result.best_human_response = human_response
 
-        self.best_travelTime = env.calculate_traveltime(*self.best_robot_state)
-        self.best_productivity = env.calculate_productivity(
-            self.best_travelTime)
-        return self.best_robot_state
+        if not env.normalized:
+            centroid_loader = data_buffer
+        else:
+            centroid_loader = env
+
+        self.optimal_result.best_satisfy_number, self.optimal_result.best_satisfy_type = CriteriaChecker.satisfy_check(human_response, normalized=env.normalized,
+                                                                                                                       eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
+                                                                                                                       eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
+
+        self.optimal_result.best_travel_time = env.calculate_traveltime(
+            *self.optimal_result.best_robot_state)
+        self.optimal_result.best_productivity = env.calculate_productivity(
+            self.optimal_result.best_travel_time)
+
+        return self.optimal_result.best_robot_state
 
 
 class SearchDownStrategy(SimpleStrategy):
@@ -92,6 +95,12 @@ class SearchDownStrategy(SimpleStrategy):
             [move_spd, arm_spd, binary_array_1, binary_array_2, binary_array_3]).T
 
     def find_best_state(self, env, data_buffer):
+
+        if not env.normalized:
+            centroid_loader = data_buffer
+        else:
+            centroid_loader = env
+
         for robot_state in self.all_combinations:
             this_human_response = env.compute_human_response(robot_state)
             # if args.normalized_human_response, env returns normalized human response, otherwise, return actual human response
@@ -101,15 +110,23 @@ class SearchDownStrategy(SimpleStrategy):
             human_response = data_buffer.normalize_human_response(
                 this_human_response)
 
-            is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=env.normalized,
-                                                                                              eng_centroids=data_buffer.eng_centroids, vig_centroids=data_buffer.vig_centroids,
-                                                                                              eng_normalized_centroids=data_buffer.eng_normalized_centroids, vig_normalized_centroids=data_buffer.vig_normalized_centroids)
-            if is_satisfy_val_aro:
-                self.good_human_response = True
-                break
-        self.best_robot_state = robot_state
-        self.best_human_response = human_response
-        self.best_travelTime = env.calculate_traveltime(*self.best_robot_state)
-        self.best_productivity = env.calculate_productivity(
-            self.best_travelTime)
-        return robot_state  # if no acceptable state found, return the last state
+            self.optimal_result.check_and_update(human_response, robot_state, )
+
+            current_satisfy_number, current_satisfy_type = CriteriaChecker.satisfy_check(human_response, normalized=env.normalized,
+                                                                                         eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
+                                                                                         eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
+            # Check if current's satisfy type is larger than optimal result
+            if current_satisfy_number > self.optimal_result.best_satisfy_number:
+                self.optimal_result.best_satisfy_number = current_satisfy_number
+                self.optimal_result.best_satisfy_type = current_satisfy_type
+                self.optimal_result.best_robot_state = robot_state
+                self.optimal_result.best_human_response = human_response
+                self.optimal_result.best_travel_time = env.calculate_traveltime(
+                    *self.optimal_result.best_robot_state)
+                self.optimal_result.best_productivity = env.calculate_productivity(
+                    self.optimal_result.best_travel_time)
+
+                # If all responses all satisfied, we can break
+                if current_satisfy_number == 4:
+                    break
+        return self.optimal_result.best_robot_state
