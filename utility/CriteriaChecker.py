@@ -70,6 +70,62 @@ class CriteriaChecker:
 
         return vigilance_closest == 1
 
+    @staticmethod
+    def satisfy_check(human_response, normalized=True,
+                      eng_centroids=None, vig_centroids=None,
+                      eng_normalized_centroids=None, vig_normalized_centroids=None) -> tuple[int, str]:
+        """
+        Method that will check if each human response satisfies the critiera first
+        Return: Number of satisfied, and stirng of satisfy type
+        """
+
+        current_satisfy_type = ""
+        current_satisfy_number = 0
+
+        # Index Map for Human Response
+        index_map = {
+            0: "VAL",
+            1: "ARO",
+            2: "ENG",
+            3: "VIG"
+        }
+
+        # Criteria Check Method Map for Human Response
+        methods_map = {
+            "VAL": CriteriaChecker.satisfy_valence,
+            "ARO": CriteriaChecker.satisfy_arousal,
+            "ENG": CriteriaChecker.satisfy_engagement,
+            "VIG": CriteriaChecker.satisfy_vigilance
+        }
+
+        # Check for each response
+        for i in range(len(human_response)):
+            is_satisfy_type = False
+            response_value = human_response[i]
+            response_type = index_map[i]
+            check_method = methods_map[response_type]
+
+            # Check if it is engagement
+            if response_type == "ENG":
+                is_satisfy_type = check_method(response_value, normalized=normalized,
+                                               eng_centroids=eng_centroids, eng_normalized_centroids=eng_normalized_centroids)
+            elif response_type == "VIG":
+                is_satisfy_type = check_method(response_value, normalized=normalized,
+                                               vig_centroids=vig_centroids, vig_normalized_centroids=vig_normalized_centroids)
+            else:
+                is_satisfy_type = check_method(response_value)
+
+            # Check if this response satisfies the criteria
+            if is_satisfy_type:
+                current_satisfy_number += 1
+                current_satisfy_type += response_type
+                # Use '-' to connect
+                current_satisfy_type += "-" if i < len(
+                    human_response) - 1 else ""
+
+        # Return result
+        return current_satisfy_number, current_satisfy_type
+
     @deprecated
     def satisfy_engagement_vigilance(human_response, normalized=False, eng_centroids=None, vig_centroids=None, eng_normalized_centroids=None, vig_normalized_centroids=None) -> bool:
         """

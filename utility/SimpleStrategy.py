@@ -20,6 +20,8 @@ class SimpleStrategy:
         self.best_travelTime = None
         self.best_productivity = None
         self.good_human_response = False
+        self.best_satisfy_number = 0
+        self.best_satisfy_type = ""
 
     def run(self):
         pass
