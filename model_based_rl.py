@@ -292,7 +292,7 @@ if __name__ == '__main__':
         #     is_exploit = np.random.random() > exploration_rate
         #     if is_exploit:  # exploit
         #         robot_state, reward, est_human_response, have_result, est_satisfy_type = grid_search(
-        #             args, env, model=model)
+        #             args, env, model=model, data_buffer=data_buffer)
         #         if have_result:
         #             exploit_total_num += 1
         #             raw_human_response = env.compute_human_response(
