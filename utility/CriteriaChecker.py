@@ -26,7 +26,6 @@ class CriteriaChecker:
         Check if the arousal satisfies the criteria
         --return: Bool indicating if satisfied
         """
-
         return arousal > 0
 
     @staticmethod
