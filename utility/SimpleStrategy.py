@@ -58,10 +58,10 @@ class MaxProductivityStrategy(SimpleStrategy):
                                                                                                                        eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
                                                                                                                        eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
 
-        self.optimal_result.best_travel_time = env.calculate_traveltime(
+        self.optimal_result.best_travelTime = env.calculate_traveltime(
             *self.optimal_result.best_robot_state)
         self.optimal_result.best_productivity = env.calculate_productivity(
-            self.optimal_result.best_travel_time)
+            self.optimal_result.best_travelTime)
 
         return self.optimal_result.best_robot_state
 
@@ -121,10 +121,10 @@ class SearchDownStrategy(SimpleStrategy):
                 self.optimal_result.best_satisfy_type = current_satisfy_type
                 self.optimal_result.best_robot_state = robot_state
                 self.optimal_result.best_human_response = human_response
-                self.optimal_result.best_travel_time = env.calculate_traveltime(
+                self.optimal_result.best_travelTime = env.calculate_traveltime(
                     *self.optimal_result.best_robot_state)
                 self.optimal_result.best_productivity = env.calculate_productivity(
-                    self.optimal_result.best_travel_time)
+                    self.optimal_result.best_travelTime)
 
                 # If all responses all satisfied, we can break
                 if current_satisfy_number == 4:

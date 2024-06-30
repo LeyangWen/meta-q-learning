@@ -21,7 +21,7 @@ class OptimalResult:
         self.best_productivity = 0
         self.best_robot_state = []
         self.best_human_response = []
-        self.best_travel_time = 0
+        self.best_travelTime = 0
         self.best_satisfy_number = 0
         self.best_satisfy_type = ""
        

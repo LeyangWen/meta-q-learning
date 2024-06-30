@@ -13,6 +13,7 @@ from utility.DataBuffer import DataBuffer
 from utility.utility import *
 from utility.SimpleStrategy import MaxProductivityStrategy, SearchDownStrategy
 from utility.CriteriaChecker import CriteriaChecker
+from utility.OptimalResult import OptimalResult
 # todo: meta learning - change to one subject only, write code to determine convergence speed, write meta-eval loops
 
 
@@ -82,13 +83,8 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
         valances, arousals, engagements, vigilances = model(robot_states).detach(
         ).cpu().numpy().T  # output of the model is already normalized
 
-    best_reward = 0
-    best_robot_state = []
-    best_human_response = []
-    have_result = False
-    satisfy_type = None
-    no_all_satisfy = True
-    
+    optimal_result = OptimalResult()
+
     for i in range(len(bin_map)):
         this_state = full_states[i]
         travelTime = env.calculate_traveltime(this_state[env.num_responses], this_state[env.num_responses+1],
@@ -114,27 +110,15 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
             centroid_loader = data_buffer
         else:
             centroid_loader = env
-        is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=args.normalized_human_response,
-                                                                                          eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
-                                                                                          eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
-        if is_satisfy_val_aro and is_satisfy_eng_vig:
-            if productivity > best_reward or no_all_satisfy:
-                best_reward = productivity
-                best_robot_state = this_state[env.num_responses:]
-                best_human_response = human_response
-                have_result = True
-                no_all_satisfy = False
-                satisfy_type = "ALL"
-                
-        elif is_satisfy_val_aro and no_all_satisfy:
-            if productivity > best_reward:
-                best_reward = productivity
-                best_robot_state = this_state[env.num_responses:]
-                best_human_response = human_response
-                have_result = True
-                satisfy_type = "VAL-ARO"
 
-    return best_robot_state, best_reward, best_human_response, have_result, satisfy_type
+        robot_state = this_state[env.num_responses:]
+        
+        # Run OptimalResult's check_and_update to check and update best info 
+        optimal_result.check_and_update(human_response, robot_state, productivity, normalized=args.normalized_human_response,
+                                        eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
+                                        eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
+
+    return optimal_result
 
 
 def random_explore(args, env):
