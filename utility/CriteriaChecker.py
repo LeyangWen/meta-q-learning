@@ -1,5 +1,6 @@
 from __future__ import annotations  # for my python 3.8 env
 from utility.DataBuffer import *
+from deprecated import deprecated
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -10,17 +11,67 @@ class CriteriaChecker:
     """
 
     @staticmethod
-    def satisfy_valence_arousal(human_response) -> bool:
+    def satisfy_valence(valence) -> bool:
         """
         Static Method. 
-        Check if the valence and arousal satisfy the requirement
+        Check if the valence satisfies the criteria
         --return: Bool indicating if satisfied
         """
-        valence = human_response[0]
-        arousal = human_response[1]
-        return valence > 0 and arousal > 0
+        return valence > 0
 
     @staticmethod
+    def satisfy_arousal(arousal) -> bool:
+        """
+        Static Method.
+        Check if the arousal satisfies the criteria
+        --return: Bool indicating if satisfied
+        """
+
+        return arousal > 0
+
+    @staticmethod
+    def satisfy_engagement(engagement, normalized=True, eng_centroids=None, eng_normalized_centroids=None) -> bool:
+        """
+        Static Method.
+        Check if the engagement satisfies the requirement
+        --return: Bool indicating if satisfied
+        """
+
+        # Check if the response is normalized and using it accordingly
+        if normalized:
+            engagement_centroids = eng_normalized_centroids
+        else:
+            engagement_centroids = eng_centroids
+
+        # Calculate distance from the point and the centroid
+        # Find if it's closest to the middle one
+        engagement_distances = np.abs(engagement_centroids - engagement)
+        engagement_closest = np.argmin(engagement_distances)
+
+        return engagement_closest == 1
+
+    @staticmethod
+    def satisfy_vigilance(vigilance, normalized=True, vig_centroids=None, vig_normalized_centroids=None) -> bool:
+        """
+        Static Method.
+        Check if the vigilance satisfies the requirement
+        --return: Bool indicating if satisfied
+        """
+
+        # Check if the response is normalized and using it accordingly
+        if normalized:
+            vigilance_centroids = vig_normalized_centroids
+        else:
+            vigilance_centroids = vig_centroids
+
+        # Calculate distance from the point and the centroid
+        # Find if it's closest to the middle one
+        vigilance_distances = np.abs(vigilance_centroids - vigilance)
+        vigilance_closest = np.argmin(vigilance_distances)
+
+        return vigilance_closest == 1
+
+    @deprecated
     def satisfy_engagement_vigilance(human_response, normalized=False, eng_centroids=None, vig_centroids=None, eng_normalized_centroids=None, vig_normalized_centroids=None) -> bool:
         """
         Static Method. 
@@ -49,7 +100,7 @@ class CriteriaChecker:
 
         return engagement_closest == 1 and vigilance_closest == 1
 
-    @staticmethod
+    @deprecated
     def satisfy_all_requirements(human_response, normalized=False, eng_centroids=None, vig_centroids=None, eng_normalized_centroids=None, vig_normalized_centroids=None) -> tuple[bool, bool]:
         """
         Static Method. 
