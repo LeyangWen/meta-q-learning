@@ -112,8 +112,8 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
             centroid_loader = env
 
         robot_state = this_state[env.num_responses:]
-        
-        # Run OptimalResult's check_and_update to check and update best info 
+
+        # Run OptimalResult's check_and_update to check and update best info
         optimal_result.check_and_update(human_response, robot_state, productivity, normalized=args.normalized_human_response,
                                         eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
                                         eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
@@ -142,20 +142,58 @@ def look_back_in_buffer(data_buffer, look_back_episode):
                        "productivity": data_buffer.productivity_buffer[-1]}
     best_productivity = 0
     found_result = False
-    
-    # TODO: Change code logic here
-    for look_back in range(look_back_episode):
-        if data_buffer.is_exploit_buffer[-look_back]:
-            # Modify here: good_human_response_buffer changed
-            if data_buffer.good_human_response_val_aro_buffer[-look_back]:
-                if data_buffer.productivity_buffer[-look_back] > best_productivity:
-                    best_productivity = data_buffer.productivity_buffer[-look_back]
-                    converge_result["robot_state"] = data_buffer.robot_state_buffer[-look_back]
-                    converge_result["human_response"] = data_buffer.human_response_buffer[-look_back]
-                    converge_result["human_response_normalized"] = data_buffer.normalize_human_response(
-                        data_buffer.human_response_buffer[-look_back])
-                    converge_result["productivity"] = data_buffer.productivity_buffer[-look_back]
-                    found_result = True
+
+    # Extract the is_exploit_buffer array
+    is_exploit_buffer = data_buffer.is_exploit_buffer[-look_back_episode:]
+
+    # Extract the satisfy_number_arrays buffer
+    # All columns from -look_back_episode and to the right
+    satisfy_number_buffers = data_buffer.satisfy_number_buffers[:, -
+                                                                look_back_episode:]
+
+    # Multiply the two arrays to get a mask_array that is both exploit and satisfy the numbers
+    # E.G, is_exploit = [False, True], and satisfy_number_buffers=[[True, False], [True, True]]
+    # Result: [[False, False], [False, True]]
+    is_exploit_satisfy_number_buffers = [
+        is_exploit_buffer * satisfy_number_buffer for satisfy_number_buffer in satisfy_number_buffers]
+
+    # Multiply the is_exploit_satisfy_number_buffers with our productivity buffer
+    # EG, is_exploit_satisfy_numbers_array = [[True, False], [False, True]], productivity = [21, 32]
+    # Result: [[21, 0], [0, 32]]
+    satisfy_number_productivity = [data_buffer.productivity *
+                                   is_exploit_satisfy_number_buffer for is_exploit_satisfy_number_buffer in is_exploit_satisfy_number_buffers]
+
+    # Start with the last index(satisfy number)
+    # E.G, if there are 4 human responses, the satisfy_number_productivity will be np.array of [[index 0], [index 1], [index 2], [index 3], [index 4]]
+    # where each index indicates the number of human responses satisfy the critier
+    # We want to check from the back (4 -> 3 -> 2 -> 1), we don't consider the case when no human response satisfies
+    for satisfy_number in range(len(satisfy_number_productivity) - 1, 0, -1):
+        # Calculate the maximum productivity of all cases where "satisfy_number" of human_responses are satisfied
+        this_satisfy_number_max_productivity = np.max(
+            satisfy_number_productivity[satisfy_number])
+
+        # If the max value is larger than 0, this means at least some episodes reach the satisfy_number
+        if this_satisfy_number_max_productivity > 0:
+            # Find the index of the max_productivity
+            index = np.argmax(satisfy_number_productivity[satisfy_number])
+
+            # Then, the Actual Index of that episode in the data_buffer will be -look_back_episode + index
+            # EG. if the original productivity is [12, 18, 23, 20, 11]
+            # If look_back_episode is 4, we have -> [18, 23, 20, 11]
+            # Then, the argmax index will be 1 corresponding to 23
+            # Means -look_back_episode + index = -4 + 1 = -3, which is 23's index in the original productivity
+
+            best_productivity = this_satisfy_number_max_productivity
+            converge_result["robot_state"] = data_buffer.robot_state_buffer[-look_back_episode + index]
+            converge_result["human_response"] = data_buffer.human_response_buffer[-look_back_episode + index]
+            converge_result["human_response_normalized"] = data_buffer.normalize_human_response(
+                data_buffer.human_response_buffer[-look_back_episode + index])
+            converge_result["productivity"] = data_buffer.productivity_buffer[-look_back_episode + index]
+            found_result = True
+
+            # We can break since the order is guaranteened to be descending
+            break
+
     return converge_result, found_result
 
 
