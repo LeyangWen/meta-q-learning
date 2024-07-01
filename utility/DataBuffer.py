@@ -17,7 +17,8 @@ class DataBuffer:
         # Initialize a buffer of buffer stores response satisfy number
         # Stores from number 0 to args.num_responses + 1
         # EG. if there are 4 human respones, then will be [[satisfy 0], [satisfy 1], [satisfy 2], [satisfy 3], [satisfy 4]]
-        self.response_satisfy_number_buffers = np.empty((args.num_responses + 1, 0), bool)
+        self.response_satisfy_number_buffers = np.empty(
+            (args.num_responses + 1, 0), bool)
 
         self.is_exploit_buffer = []
         self.length = 0
@@ -54,11 +55,10 @@ class DataBuffer:
         self.human_response_buffer.append(human_response)
         self.robot_state_buffer.append(robot_state)
         self.productivity_buffer.append(productivity)
-        self.good_human_response_all_buffer.append(good_human_response_all)
-        self.good_human_response_val_aro_buffer.append(
-            good_human_response_val_aro)
-        self.good_human_response_eng_vig_buffer.append(
-            good_human_response_eng_vig)
+        
+        # Append the column of response satisfy number array
+        self.response_satisfy_number_buffers = np.insert(self.response_satisfy_number_buffers, len(
+            self.response_satisfy_number_buffers[0]), response_satify_number_array, axis=1)
 
         self.is_exploit_buffer.append(is_exploit)
         self.length += 1
