@@ -45,7 +45,7 @@ class CriteriaChecker:
         # Calculate distance from the point and the centroid
         # Find if it's closest to the middle one
         engagement_distances = np.abs(engagement_centroids - engagement)
-        engagement_closest = np.argmin(engagement_distances)
+        engagement_closest = np.nanargmin(engagement_distances)
 
         return engagement_closest == 1
 
@@ -66,7 +66,7 @@ class CriteriaChecker:
         # Calculate distance from the point and the centroid
         # Find if it's closest to the middle one
         vigilance_distances = np.abs(vigilance_centroids - vigilance)
-        vigilance_closest = np.argmin(vigilance_distances)
+        vigilance_closest = np.nanargmin(vigilance_distances)
 
         return vigilance_closest == 1
 

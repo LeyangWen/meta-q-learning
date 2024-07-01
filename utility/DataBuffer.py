@@ -18,7 +18,7 @@ class DataBuffer:
         # Stores from number 0 to args.num_responses + 1
         # EG. if there are 4 human respones, then will be [[satisfy 0], [satisfy 1], [satisfy 2], [satisfy 3], [satisfy 4]]
         self.response_satisfy_number_buffers = np.empty(
-            (args.num_responses + 1, 0), bool)
+            (args.num_responses + 1, 0))
 
         self.is_exploit_buffer = []
         self.length = 0

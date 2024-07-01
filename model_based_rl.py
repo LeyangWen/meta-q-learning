@@ -149,7 +149,7 @@ def look_back_in_buffer(data_buffer, look_back_episode):
     # Extract the response_satisfy_number_arrays buffer
     # All columns from -look_back_episode and to the right
     response_satisfy_number_buffers = data_buffer.response_satisfy_number_buffers[:, -
-                                                                look_back_episode:]
+                                                                                  look_back_episode:]
 
     # Multiply the two arrays to get a mask_array that is both exploit and satisfy the numbers
     # E.G, is_exploit = [False, True], and response_satisfy_number_buffers=[[True, False], [True, True]]
@@ -161,7 +161,7 @@ def look_back_in_buffer(data_buffer, look_back_episode):
     # EG, is_exploit_response_satisfy_numbers_array = [[True, False], [False, True]], productivity = [21, 32]
     # Result: [[21, 0], [0, 32]]
     response_satisfy_number_productivity = [data_buffer.productivity *
-                                   is_exploit_response_satisfy_number_buffer for is_exploit_response_satisfy_number_buffer in is_exploit_response_satisfy_number_buffers]
+                                            is_exploit_response_satisfy_number_buffer for is_exploit_response_satisfy_number_buffer in is_exploit_response_satisfy_number_buffers]
 
     # Start with the last index(satisfy number)
     # E.G, if there are 4 human responses, the response_satisfy_number_productivity will be np.array of [[index 0], [index 1], [index 2], [index 3], [index 4]]
@@ -169,13 +169,14 @@ def look_back_in_buffer(data_buffer, look_back_episode):
     # We want to check from the back (4 -> 3 -> 2 -> 1), we don't consider the case when no human response satisfies
     for response_satisfy_number in range(len(response_satisfy_number_productivity) - 1, 0, -1):
         # Calculate the maximum productivity of all cases where "response_satisfy_number" of human_responses are satisfied
-        this_response_satisfy_number_max_productivity = np.max(
+        this_response_satisfy_number_max_productivity = np.nanmax(
             response_satisfy_number_productivity[response_satisfy_number])
 
         # If the max value is larger than 0, this means at least some episodes reach the response_satisfy_number
         if this_response_satisfy_number_max_productivity > 0:
             # Find the index of the max_productivity
-            index = np.argmax(response_satisfy_number_productivity[response_satisfy_number])
+            index = np.nanargmax(
+                response_satisfy_number_productivity[response_satisfy_number])
 
             # Then, the Actual Index of that episode in the data_buffer will be -look_back_episode + index
             # EG. if the original productivity is [12, 18, 23, 20, 11]
@@ -234,7 +235,8 @@ def parse_args():
     parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
 
     # Other settings
-    parser.add_argument("--num_responses", default=4, type=int, help="number of human responses")
+    parser.add_argument("--num_responses", default=4,
+                        type=int, help="number of human responses")
     parser.add_argument('--result_look_back_episode', default=[
                         10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
     parser.add_argument('--normalized_human_response', default=True, type=bool,
@@ -300,49 +302,62 @@ if __name__ == '__main__':
         #     data_point = env.reset()
         #     raw_human_response = data_point[:env.num_responses]
         #     robot_state = data_point[env.num_responses:]
+
         #     data_buffer.add(robot_state, raw_human_response,
-        #                     np.nan, np.nan, np.nan, np.nan, is_exploit=False)
+        #                     np.nan, [np.nan] * args.num_responses, is_exploit=False)
         # current_time = time.time()
         # print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
-        #
+
         # # Step 2: run n episodes of HRC interaction, generate data points and train the model in each episode
         # exploit_success_num = 0
         # exploit_total_num = 0
         # reward = np.nan
-        # good_human_response_all = np.nan
-        # good_human_response_val_aro = np.nan
-        # good_human_response_eng_vig = np.nan
+        # estimate_response_satisfy_number = np.nan
+        # estimate_response_satisfy_type = np.nan
+        # exploit_response_satisfy_number = np.nan
+        # exploit_response_satisfy_type = np.nan
         # log_dicts = []
+        # if not args.normalized_human_response:
+        #     centroid_loader = data_buffer
+        # else:
+        #     centroid_loader = env
+
         # for i in range(args.episode_num):
         #     is_exploit = np.random.random() > exploration_rate
         #     if is_exploit:  # exploit
-        #         robot_state, reward, est_human_response, have_result, est_satisfy_type = grid_search(
+        #         estimate_optimal_result = grid_search(
         #             args, env, model=model, data_buffer=data_buffer)
-        #         if have_result:
+        #         robot_state = estimate_optimal_result.best_robot_state
+        #         reward = estimate_optimal_result.best_productivity
+        #         est_human_response = estimate_optimal_result.best_human_response
+        #         estimate_response_satisfy_number = estimate_optimal_result.best_satisfy_number
+        #         estimate_response_satisfy_type = estimate_optimal_result.best_satisfy_type
+
+        #         # robot_state, reward, est_human_response, have_result, est_satisfy_type = grid_search(
+        #         #     args, env, model=model, data_buffer=data_buffer)
+        #         if estimate_response_satisfy_number > 0:
         #             exploit_total_num += 1
         #             raw_human_response = env.compute_human_response(
         #                 robot_state)
         #             human_response = data_buffer.normalize_human_response(
         #                 raw_human_response)
-        #
-        #             is_satisfy_val_aro, is_satisfy_eng_vig = CriteriaChecker.satisfy_all_requirements(human_response, normalized=args.normalized_human_response,
-        #                                                                                               eng_centroids=env.eng_centroids, vig_centroids=env.vig_centroids,
-        #                                                                                               eng_normalized_centroids=env.eng_normalized_centroids, vig_normalized_centroids=env.vig_normalized_centroids)
-        #             good_human_response_all = is_satisfy_eng_vig and is_satisfy_val_aro
-        #             good_human_response_val_aro = is_satisfy_val_aro
-        #             good_human_response_eng_vig = is_satisfy_eng_vig
-        #
+
+        #             exploit_response_satisfy_number, exploit_response_satisfy_type = CriteriaChecker.satisfy_check(human_response, normalized=args.normalized_human_response,
+        #                                                                                                            eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
+        #                                                                                                            eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
+
         #             with np.printoptions(precision=2):
-        #                 if good_human_response_val_aro:
+        #                 # MODIFY: If satisfied number is larger than or equal to 2, then count as exploit success
+        #                 if exploit_response_satisfy_number >= 2:
         #                     exploit_success_num += 1
         #                     print(
-        #                         f"{i}, good_HR_ALL:{good_human_response_all}, good_VAL_ARO:{good_human_response_val_aro}, good_ENG_VIG:{good_human_response_eng_vig}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}", end="\r")
+        #                         f"{i}, Response Satisfy Number: {exploit_response_satisfy_number}, Response Satisfy Type: {exploit_response_satisfy_type}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}", end="\r")
         #         else:  # random point since grid search got no results with positive valance and arousal
         #             is_exploit = False
         #             raw_human_response, robot_state = random_explore(args, env)
         #     else:  # random explore
         #         raw_human_response, robot_state = random_explore(args, env)
-        #
+
         #     #### log ####
         #     log_dict = {}
         #     log_dict["train/episode"] = i  # our custom x axis metric
@@ -353,41 +368,39 @@ if __name__ == '__main__':
         #     log_dict[f"train/values/Productivity (br_per_hr)"] = reward
         #     log_dict[f"train/values/Robot movement speed (m_per_s)"] = robot_state[0]
         #     log_dict[f"train/values/Robot arm speed (m_per_s)"] = robot_state[1]
-        #
+
         #     log_dict[f"train/bool/Is exploit"] = float(is_exploit*1.0)
-        #     log_dict[f"train/bool/Good human response all"] = float(
-        #         good_human_response_all*1.0)
-        #     log_dict[f"train/bool/Good human response val-aro"] = float(
-        #         good_human_response_val_aro*1.0)
-        #     log_dict[f"train/bool/Good human response eng-vig"] = float(
-        #         good_human_response_eng_vig*1.0)
-        #
+        #     log_dict[f"train/values/Response Satisfy Number"] = exploit_response_satisfy_number
+        #     log_dict[f"train/values/Response Satisfy Type"] = exploit_response_satisfy_type
+
         #     this_run.log(log_dict)
         #     log_dicts.append(log_dict)
         #     #### log ####
-        #
+
         #     # store in buffer
         #     # is_exploit)  # good human response might change as norm params change
+        #     response_satisfy_number_array = [
+        #         False if exploit_response_satisfy_number != i else True for i in range(0, args.num_responses + 1)]
         #     data_buffer.add(robot_state, raw_human_response,
-        #                     reward, good_human_response_all, good_human_response_val_aro, good_human_response_eng_vig, is_exploit=True)
+        #                     reward, response_satisfy_number_array, is_exploit=True)
         #     model.train()
         #     for training_step in range(args.train_step_per_episode):
         #         if args.slurm_id == 0:
         #             print(f"Training step {training_step}...", end="\r")
         #         train_step(args, model, data_buffer, optimizer,
         #                    loss_function, args.train_batch_size)
-        #
+
         #     # update epsilon
         #     exploration_rate = exploration_rate * args.exploration_decay_rate
 
         # Grid search must be done after training if using normalization parameters from random search in data buffer
-        GT_robot_state, GT_best_reward, GT_human_response, GT_have_result, GT_satisfy_type = grid_search(
+        GT_optimal_result = grid_search(
             args, env, data_buffer=data_buffer, GT=True)
         print()
         print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GT @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-        if GT_have_result:
+        if GT_optimal_result.best_satisfy_number >= 2:
             print(
-                f"productivity: {GT_best_reward:.2f}, human response: {GT_human_response}, robot state: {GT_robot_state}, satisfy type: {GT_satisfy_type}")
+                f"productivity: {GT_optimal_result.best_productivity:.2f}, human response: {GT_optimal_result.best_human_response}, robot state: {GT_optimal_result.best_robot_state}, satisfy number: {GT_optimal_result.best_satisfy_number} satisfy type: {GT_optimal_result.best_satisfy_type}")
         else:
             print("No GT result")
         print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GT @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
