@@ -141,7 +141,8 @@ def look_back_in_buffer(data_buffer, look_back_episode):
                        "human_response_normalized": data_buffer.normalize_human_response(data_buffer.human_response_buffer[-1]),
                        "productivity": data_buffer.productivity_buffer[-1]}
     best_productivity = 0
-    found_result = False
+    best_response_satisfy_number = 0
+    best_response_satisfy_type = ""
 
     # Extract the is_exploit_buffer array
     is_exploit_buffer = data_buffer.is_exploit_buffer[-look_back_episode:]
@@ -190,12 +191,13 @@ def look_back_in_buffer(data_buffer, look_back_episode):
             converge_result["human_response_normalized"] = data_buffer.normalize_human_response(
                 data_buffer.human_response_buffer[-look_back_episode + index])
             converge_result["productivity"] = data_buffer.productivity_buffer[-look_back_episode + index]
-            found_result = True
+            best_response_satisfy_number = response_satisfy_number
+            best_response_satisfy_type = data_buffer.response_satisfy_type_buffer[-look_back_episode + index]
 
             # We can break since the order is guaranteened to be descending
             break
 
-    return converge_result, found_result
+    return converge_result, best_response_satisfy_number, best_response_satisfy_type
 
 
 def parse_args():
@@ -304,7 +306,7 @@ if __name__ == '__main__':
         #     robot_state = data_point[env.num_responses:]
 
         #     data_buffer.add(robot_state, raw_human_response,
-        #                     np.nan, [np.nan] * args.num_responses, is_exploit=False)
+        #                     np.nan, [np.nan] * args.num_responses, np.nan, is_exploit=False)
         # current_time = time.time()
         # print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
 
@@ -382,7 +384,7 @@ if __name__ == '__main__':
         #     response_satisfy_number_array = [
         #         False if exploit_response_satisfy_number != i else True for i in range(0, args.num_responses + 1)]
         #     data_buffer.add(robot_state, raw_human_response,
-        #                     reward, response_satisfy_number_array, is_exploit=True)
+        #                     reward, response_satisfy_number_array, exploit_response_satisfy_type, is_exploit=True)
         #     model.train()
         #     for training_step in range(args.train_step_per_episode):
         #         if args.slurm_id == 0:
@@ -412,9 +414,9 @@ if __name__ == '__main__':
         #     re_log_dict["train/episode"] = i  # our custom x axis metric
         #     reward = log_dicts[i][f"train/values/Productivity (br_per_hr)"]
         #     re_log_dict[f"train/Productivity %"] = np.nan if np.isnan(
-        #         reward) else (reward / GT_best_reward)
+        #         reward) else (reward / GT_optimal_result.best_productivity)
         #     this_run.log(re_log_dict)
-        #
+        
         # # step 3: look back few episodes to find best result for this subject
         # #### find converge and log ####
         # print(
@@ -423,50 +425,50 @@ if __name__ == '__main__':
         # # a) table header here (one row)
         # # MODIFY: Add the 2 columns for engagement and vigilance
         # wandb_GT_table = wandb.Table(
-        #     columns=["Subject", "Category", "Look Back Num", "Good Human Response",
+        #     columns=["Subject", "Category", "Look Back Num", "Response Satisfy Number", "Response Satisfy Type"
         #              "Productivity", "Productivity %",
         #              # "Observed Valance", "Observed Arousal",
         #              "Observed Normalized Valance", "Observed Normalized Arousal", "Observed Normalized Engagement", "Observed Normalized Vigilance",
         #              "Robot Movement Speed", "Arm Swing Speed",
         #              "Proximity", "Autonomy", "Collab"])
-        #
+        
         # # b) GT result (one row)
-        # wandb_GT_table.add_data(args.sub_id, "GT", None, None,
-        #                         GT_best_reward, None,
+        # wandb_GT_table.add_data(args.sub_id, "GT", None, GT_optimal_result.best_satisfy_number, GT_optimal_result.best_satisfy_type,
+        #                         GT_optimal_result.best_productivity, None,
         #                         # *GT_human_response,
-        #                         *GT_human_response,
-        #                         *GT_robot_state)
-        #
+        #                         *GT_optimal_result.best_human_response,
+        #                         *GT_optimal_result.best_robot_state)
+        
         # # c) Simple strategy results (multiple rows)
         # strategies = [MaxProductivityStrategy(), SearchDownStrategy()]
         # for strategy in strategies:
         #     strategy.find_best_state(env, data_buffer)
-        #     wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.good_human_response,
-        #                             strategy.best_productivity, strategy.best_productivity / GT_best_reward,
+        #     wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.optimal_result.best_satisfy_number, strategy.optimal_result.best_satisfy_type,
+        #                             strategy.optimal_result.best_productivity, strategy.optimal_result.best_productivity / GT_optimal_result.best_productivity,
         #                             # *strategy.best_human_response,
-        #                             *strategy.best_human_response,  # already normalized
-        #                             *strategy.best_robot_state)
-        #
+        #                             *strategy.optimal_result.best_human_response,  # already normalized
+        #                             *strategy.optimal_result.best_robot_state)
+        
         # # d) look back converge results (multiple rows)
         # # [5,10,20,50,100]
         # for look_back_episode in args.result_look_back_episode:
-        #     converge_result, found_result = look_back_in_buffer(
+        #     converge_result, look_back_satisfy_num, look_back_satisfy_type = look_back_in_buffer(
         #         data_buffer, look_back_episode)
-        #     wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, found_result,
+        #     wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, look_back_satisfy_num, look_back_satisfy_type,
         #                             converge_result["productivity"], converge_result["productivity"] /
-        #                             GT_best_reward,
+        #                             GT_optimal_result.best_productivity,
         #                             # *converge_result["human_response"],
         #                             *converge_result["human_response_normalized"],
         #                             *converge_result["robot_state"])
-        #
+        
         # this_run.log({f"Train/Table/Results": wandb_GT_table})
-        #
+        
         # # Save the model and result
         # checkpoint_file = f"{args.checkpoint_dir}/{args.wandb_project}/subject_{args.sub_id}.pt"
         # if not os.path.exists(os.path.dirname(checkpoint_file)):
         #     os.makedirs(os.path.dirname(checkpoint_file))
         # torch.save(model.state_dict(), checkpoint_file)
-        #
+        
         # elapsed_time = time.time() - start_time
         # subject_time = time.time() - current_time
         # current_time = time.time()

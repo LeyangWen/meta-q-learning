@@ -19,6 +19,7 @@ class DataBuffer:
         # EG. if there are 4 human respones, then will be [[satisfy 0], [satisfy 1], [satisfy 2], [satisfy 3], [satisfy 4]]
         self.response_satisfy_number_buffers = np.empty(
             (args.num_responses + 1, 0))
+        self.response_satisfy_type_buffer = []
 
         self.is_exploit_buffer = []
         self.length = 0
@@ -43,7 +44,7 @@ class DataBuffer:
         # NOTSURE RN:
         self.vig_normalized_centroids = np.zeros(3)
 
-    def add(self, robot_state, human_response, productivity, response_satify_number_array, is_exploit=True):
+    def add(self, robot_state, human_response, productivity, response_satify_number_array, response_satisfy_type, is_exploit=True):
         """
         :param robot_state: 5D robot state, first 2 continuous, last 3 discrete
         :param human_response: 2D, valance and arousal, should be raw from env
@@ -59,6 +60,7 @@ class DataBuffer:
         # Append the column of response satisfy number array
         self.response_satisfy_number_buffers = np.insert(self.response_satisfy_number_buffers, len(
             self.response_satisfy_number_buffers[0]), response_satify_number_array, axis=1)
+        self.response_satisfy_type_buffer.append(response_satisfy_type)
 
         self.is_exploit_buffer.append(is_exploit)
         self.length += 1
