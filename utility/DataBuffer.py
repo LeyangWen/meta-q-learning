@@ -14,9 +14,10 @@ class DataBuffer:
         self.robot_state_buffer = []
         self.productivity_buffer = []
 
-        self.good_human_response_all_buffer = []
-        self.good_human_response_val_aro_buffer = []
-        self.good_human_response_eng_vig_buffer = []
+        # Initialize a buffer of buffer stores response satisfy number
+        # Stores from number 0 to args.num_responses + 1
+        # EG. if there are 4 human respones, then will be [[satisfy 0], [satisfy 1], [satisfy 2], [satisfy 3], [satisfy 4]]
+        self.response_satisfy_number_buffers = np.empty((args.num_responses + 1, 0), bool)
 
         self.is_exploit_buffer = []
         self.length = 0
@@ -41,7 +42,7 @@ class DataBuffer:
         # NOTSURE RN:
         self.vig_normalized_centroids = np.zeros(3)
 
-    def add(self, robot_state, human_response, productivity, good_human_response_all, good_human_response_val_aro, good_human_response_eng_vig, is_exploit=True):
+    def add(self, robot_state, human_response, productivity, response_satify_number_array, is_exploit=True):
         """
         :param robot_state: 5D robot state, first 2 continuous, last 3 discrete
         :param human_response: 2D, valance and arousal, should be raw from env

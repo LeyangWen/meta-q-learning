@@ -338,7 +338,7 @@ class KukaHumanResponse(gym.Env):
 
 
 class KukaHumanResponse_Rand(KukaHumanResponse):
-    def __init__(self, task={}, n_tasks=18, randomize_tasks=False, verbose=True, normalized=True):
+    def __init__(self, task={}, n_tasks=18, randomize_tasks=False, verbose=True, normalized=True, num_responses=4):
         '''
         :param task: task is a dictionary with key 'goal_position'
         :param n_tasks: number of tasks, 18 subjects in total, 13 for training, 5 for testing
@@ -349,7 +349,7 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.load_from_task(self.tasks[0])
         # goal_position
         super(KukaHumanResponse_Rand, self).__init__(
-            verbose=verbose, normalized=normalized)
+            verbose=verbose, normalized=normalized, num_responses=num_responses)
 
     def load_response(self, file, index):
         data = np.loadtxt(file, delimiter=',')
