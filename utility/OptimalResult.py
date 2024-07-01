@@ -45,4 +45,5 @@ class OptimalResult:
             self.best_productivity = productivity
             self.best_human_response = human_response
             self.best_robot_state = robot_state
+            self.best_satisfy_number = current_satisfy_number
             self.best_satisfy_type = current_satisfy_type
