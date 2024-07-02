@@ -252,6 +252,7 @@ def parse_args():
                         help='slurm id, used to mark runs')
     parser.add_argument('--arg_notes', default="increased number of random explore upfront to help with estimating mean",
                         type=str, help='notes for this run, will be stored in wandb')
+    parser.add_argument('--prefix_8_state', default=False, help="use 8 preset robot state values for random_explore in grid search")
     args = parser.parse_args()
     return args
 
