@@ -152,19 +152,19 @@ def look_back_in_buffer(data_buffer, look_back_episode):
     response_satisfy_number_buffers = data_buffer.response_satisfy_number_buffers[:, -
                                                                                   look_back_episode:]
 
-    # Multiply the two arrays to get a mask_array that is both exploit and satisfy the numbers
+    # HACK: Multiply the two arrays to get a mask_array that is both exploit and satisfy the numbers
     # E.G, is_exploit = [False, True], and response_satisfy_number_buffers=[[True, False], [True, True]]
     # Result: [[False, False], [False, True]]
     is_exploit_response_satisfy_number_buffers = [
         is_exploit_buffer * response_satisfy_number_buffer for response_satisfy_number_buffer in response_satisfy_number_buffers]
 
-    # Multiply the is_exploit_response_satisfy_number_buffers with our productivity buffer
+    # HACK: Multiply the is_exploit_response_satisfy_number_buffers with our productivity buffer
     # EG, is_exploit_response_satisfy_numbers_array = [[True, False], [False, True]], productivity = [21, 32]
     # Result: [[21, 0], [0, 32]]
     response_satisfy_number_productivity = [data_buffer.productivity *
                                             is_exploit_response_satisfy_number_buffer for is_exploit_response_satisfy_number_buffer in is_exploit_response_satisfy_number_buffers]
 
-    # Start with the last index(satisfy number)
+    # HACK: Start with the last index(satisfy number)
     # E.G, if there are 4 human responses, the response_satisfy_number_productivity will be np.array of [[index 0], [index 1], [index 2], [index 3], [index 4]]
     # where each index indicates the number of human responses satisfy the critier
     # We want to check from the back (4 -> 3 -> 2 -> 1), we don't consider the case when no human response satisfies
@@ -179,6 +179,7 @@ def look_back_in_buffer(data_buffer, look_back_episode):
             index = np.nanargmax(
                 response_satisfy_number_productivity[response_satisfy_number])
 
+            # NOTE:
             # Then, the Actual Index of that episode in the data_buffer will be -look_back_episode + index
             # EG. if the original productivity is [12, 18, 23, 20, 11]
             # If look_back_episode is 4, we have -> [18, 23, 20, 11]
@@ -297,18 +298,28 @@ if __name__ == '__main__':
         loss_function = torch.nn.MSELoss()
         exploration_rate = args.exploration_rate
 
-        # TODO：Modify here
-        # Step 1: fill the buffer with random data points
+        # NOTE: Modify here
+        # Step 1: Check if we are using 8 prefix values
+        # if args.prefix_8_state:
+        #     random_explore_num = args.random_explore_num - 8
+        #     # Calculate the human_responses and add them to data buffer. Calculate params
+        #     data_buffer.calculate_prefix_eight(env)
+        #     if args.slurm_id == 0:
+        #         print("Fill the buffer with prefix 8 data points")
+        # else:
+        #     random_explore_num = args.random_explore_num
+            
+        # # Fill with random data points
         # for _ in range(args.random_explore_num):
         #     if args.slurm_id == 0:
         #         print(
-        #             f"Fill the buffer with random data points {_}/{args.random_explore_num}...", end="\r")
+        #             f"Fill the buffer with random data points {_}/{args.random_explore_num - 1}...", end="\r")
         #     data_point = env.reset()
         #     raw_human_response = data_point[:env.num_responses]
         #     robot_state = data_point[env.num_responses:]
 
         #     data_buffer.add(robot_state, raw_human_response,
-        #                     np.nan, [np.nan] * args.num_responses, np.nan, is_exploit=False)
+        #                     np.nan, [np.nan] * (args.num_responses + 1), np.nan, is_exploit=False)
         # current_time = time.time()
         # print(f"[{(current_time - start_time)/60:.2f} min] Buffer filled with {args.random_explore_num} random data points")
 
