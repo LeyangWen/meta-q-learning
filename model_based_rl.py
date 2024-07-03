@@ -297,7 +297,8 @@ if __name__ == '__main__':
         loss_function = torch.nn.MSELoss()
         exploration_rate = args.exploration_rate
 
-        # # Step 1: fill the buffer with random data points
+        # TODO：Modify here
+        # Step 1: fill the buffer with random data points
         # for _ in range(args.random_explore_num):
         #     if args.slurm_id == 0:
         #         print(

@@ -33,15 +33,11 @@ class DataBuffer:
         self.eng_std = 0
         self.eng_mean = 0
         self.eng_centroids = np.zeros(3)
-
-        # NOTSURE RN:
         self.eng_normalized_centroids = np.zeros(3)
 
         self.vig_std = 0
         self.vig_mean = 0
         self.vig_centroids = np.zeros(3)
-
-        # NOTSURE RN:
         self.vig_normalized_centroids = np.zeros(3)
 
     def add(self, robot_state, human_response, productivity, response_satify_number_array, response_satisfy_type, is_exploit=True):
@@ -96,19 +92,34 @@ class DataBuffer:
         engagement_clusters = k_means_cluster.cluster_centers_
         engagement_clusters = engagement_clusters.flatten()
         sorted_engagement_clusters = np.sort(engagement_clusters)
-        self.eng_centroids = sorted_engagement_clusters
-        self.eng_normalized_centroids = (
-            self.eng_centroids - self.eng_mean) / self.eng_std
-
+        
         # Find the Centroid values for the vigilance
         k_means_cluster.fit(
             (human_responses_buffer_np_exploit[:, 3]).reshape(-1, 1))
         vigilance_clusters = k_means_cluster.cluster_centers_
         vigilance_clusters = vigilance_clusters.flatten()
         sorted_vigilance_clusters = np.sort(vigilance_clusters)
-        self.vig_centroids = sorted_vigilance_clusters
-        self.vig_normalized_centroids = (
-            self.vig_centroids - self.vig_mean) / self.vig_std
+        
+        # Check if the data is already normal
+        # If normal: normal centroids is the same as sorted result, 
+        # If not normal: normal centroid is normalizing the sorted result
+        if not self.normalize_human_response:
+            self.eng_centroids = sorted_engagement_clusters
+            self.eng_normalized_centroids = (
+                self.eng_centroids - self.eng_mean) / self.eng_std
+
+            
+            self.vig_centroids = sorted_vigilance_clusters
+            self.vig_normalized_centroids = (
+                self.vig_centroids - self.vig_mean) / self.vig_std
+        else:
+            self.eng_normalized_centroids = sorted_engagement_clusters
+            self.eng_centroids = (self.eng_normalized_centroids * self.eng_std) + self.eng_mean
+            
+            self.vig_normalized_centroids = sorted_vigilance_clusters
+            self.vig_centroids = (self.vig_normalized_centroids * self.vig_std) + self.vig_mean
+        
+        
 
     def update_normalization_parameters(self):
         """ Calculate the normalization parameters for the human response in the data buffer so far, but only when is_exploit is False
