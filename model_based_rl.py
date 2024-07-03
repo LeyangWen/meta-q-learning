@@ -207,7 +207,7 @@ def parse_args():
     # Training parameters
     parser.add_argument('--grid_search_num', default=100,
                         type=int, help='number of grid search, positive integer')
-    parser.add_argument('--gt_grid_search_num', default=500, type=int,
+    parser.add_argument('--gt_grid_search_num', default=300, type=int,
                         help='number of grid search for GT, positive integer')
     parser.add_argument('--random_explore_num', default=128,
                         type=int, help='number of random explore, positive integer')
@@ -246,6 +246,7 @@ def parse_args():
                         help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
+
 
     parser.add_argument('--debug_mode', default=False,
                         help='Enable debug mode for smaller cycles')
