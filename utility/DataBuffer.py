@@ -86,8 +86,6 @@ class DataBuffer:
                 prefix_robot_state)
             self.add(prefix_robot_state, prefix_human_response,
                      np.nan, [np.nan] * (env.num_responses + 1), np.nan, is_exploit=False)
-            print(
-                    f"Fill the buffer with random data points {_}/{8}...", end="\r")
 
         # Calculate the centroids, mean, and std
         self.update_normalization_parameters()
@@ -134,7 +132,7 @@ class DataBuffer:
         # Check if the data is already normal
         # If normal: normal centroids is the same as sorted result,
         # If not normal: normal centroid is normalizing the sorted result
-        if not self.normalize_human_response:
+        if not self.normalized_human_response:
             self.eng_centroids = sorted_engagement_clusters
             self.eng_normalized_centroids = (
                 self.eng_centroids - self.eng_mean) / self.eng_std
@@ -158,7 +156,7 @@ class DataBuffer:
 
         # Check if paused upstate
         # If not paused, then we update the parameters
-        if not self.update_normalization_parameters:
+        if not self.pause_update_normalization_param:
             human_response_buffer_np = np.array(self.human_response_buffer)
             human_response_buffer_np_exploit = human_response_buffer_np[np.array(
                 self.is_exploit_buffer) == False]
