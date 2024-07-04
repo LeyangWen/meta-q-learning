@@ -366,7 +366,7 @@ if __name__ == '__main__':
                         if exploit_response_satisfy_number >= 2:
                             exploit_success_num += 1
                             print(
-                                f"{i}, Response Satisfy Number: {exploit_response_satisfy_number}, Response Satisfy Type: {exploit_response_satisfy_type}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}", end="\r")
+                                f"{i}, Response Satisfy Number: {exploit_response_satisfy_number}, Response Satisfy Type: {exploit_response_satisfy_type}, prod:{reward:.2f}, HR:{human_response}, robot state:{robot_state}")
                 else:  # random point since grid search got no results with positive valance and arousal
                     is_exploit = False
                     raw_human_response, robot_state = random_explore(args, env)
