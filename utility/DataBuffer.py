@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.cluster import KMeans
-from rand_param_envs.gym.envs.HRC.kuka_human_response import KukaHumanResponse
 
 
 class DataBuffer:
