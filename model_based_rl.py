@@ -207,7 +207,7 @@ def parse_args():
     # Training parameters
     parser.add_argument('--grid_search_num', default=100,
                         type=int, help='number of grid search, positive integer')
-    parser.add_argument('--gt_grid_search_num', default=300, type=int,
+    parser.add_argument('--gt_grid_search_num', default=500, type=int,
                         help='number of grid search for GT, positive integer')
     parser.add_argument('--random_explore_num', default=128,
                         type=int, help='number of random explore, positive integer')
@@ -242,13 +242,12 @@ def parse_args():
                         type=int, help="number of human responses")
     parser.add_argument('--result_look_back_episode', default=[
                         10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', default=False, type=bool,
+    parser.add_argument('--normalized_human_response', default=True, type=bool,
                         help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
 
-
-    parser.add_argument('--debug_mode', default=False,
+    parser.add_argument('--debug_mode', default=True,
                         help='Enable debug mode for smaller cycles')
     parser.add_argument('--slurm_id', default=0, type=int,
                         help='slurm id, used to mark runs')
@@ -441,15 +440,12 @@ if __name__ == '__main__':
         wandb_GT_table = wandb.Table(
             columns=["Subject", "Category", "Look Back Num", "Response Satisfy Number", "Response Satisfy Type"
                      "Productivity", "Productivity %",
-                     # "Observed Valance", "Observed Arousal",
                      "Observed Normalized Valance", "Observed Normalized Arousal", "Observed Normalized Engagement", "Observed Normalized Vigilance",
-                     "Robot Movement Speed", "Arm Swing Speed",
-                     "Proximity", "Autonomy", "Collab"])
-        
+                     "Robot Movement Speed", "Arm Swing Speed", "Proximity", "Autonomy", "Collab"])  # robot_state
+
         # b) GT result (one row)
         wandb_GT_table.add_data(args.sub_id, "GT", None, GT_optimal_result.best_satisfy_number, GT_optimal_result.best_satisfy_type,
                                 GT_optimal_result.best_productivity, None,
-                                # *GT_human_response,
                                 *GT_optimal_result.best_human_response,
                                 *GT_optimal_result.best_robot_state)
         
@@ -459,7 +455,6 @@ if __name__ == '__main__':
             strategy.find_best_state(env, data_buffer)
             wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.optimal_result.best_satisfy_number, strategy.optimal_result.best_satisfy_type,
                                     strategy.optimal_result.best_productivity, strategy.optimal_result.best_productivity / GT_optimal_result.best_productivity,
-                                    # *strategy.best_human_response,
                                     *strategy.optimal_result.best_human_response,  # already normalized
                                     *strategy.optimal_result.best_robot_state)
         
@@ -471,7 +466,6 @@ if __name__ == '__main__':
             wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, look_back_satisfy_num, look_back_satisfy_type,
                                     converge_result["productivity"], converge_result["productivity"] /
                                     GT_optimal_result.best_productivity,
-                                    # *converge_result["human_response"],
                                     *converge_result["human_response_normalized"],
                                     *converge_result["robot_state"])
         
