@@ -464,8 +464,7 @@ if __name__ == '__main__':
             converge_result, look_back_satisfy_num, look_back_satisfy_type = look_back_in_buffer(
                 data_buffer, look_back_episode)
             wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, look_back_satisfy_num, look_back_satisfy_type,
-                                    converge_result["productivity"], converge_result["productivity"] /
-                                    GT_optimal_result.best_productivity,
+                                    converge_result["productivity"], converge_result["productivity"] / GT_optimal_result.best_productivity,
                                     *converge_result["human_response_normalized"],
                                     *converge_result["robot_state"])
         
