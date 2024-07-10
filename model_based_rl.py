@@ -146,6 +146,7 @@ def look_back_in_buffer(data_buffer, look_back_episode):
 
     # Extract the is_exploit_buffer array
     is_exploit_buffer = data_buffer.is_exploit_buffer[-look_back_episode:]
+    productivity_buffer = data_buffer.productivity_buffer[-look_back_episode:]
 
     # Extract the response_satisfy_number_arrays buffer
     # All columns from -look_back_episode and to the right
@@ -161,7 +162,7 @@ def look_back_in_buffer(data_buffer, look_back_episode):
     # HACK: Multiply the is_exploit_response_satisfy_number_buffers with our productivity buffer
     # EG, is_exploit_response_satisfy_numbers_array = [[True, False], [False, True]], productivity = [21, 32]
     # Result: [[21, 0], [0, 32]]
-    response_satisfy_number_productivity = [data_buffer.productivity *
+    response_satisfy_number_productivity = [productivity_buffer *
                                             is_exploit_response_satisfy_number_buffer for is_exploit_response_satisfy_number_buffer in is_exploit_response_satisfy_number_buffers]
 
     # HACK: Start with the last index(satisfy number)
@@ -438,7 +439,7 @@ if __name__ == '__main__':
         # a) table header here (one row)
         # MODIFY: Add the 2 columns for engagement and vigilance
         wandb_GT_table = wandb.Table(
-            columns=["Subject", "Category", "Look Back Num", "Response Satisfy Number", "Response Satisfy Type"
+            columns=["Subject", "Category", "Look Back Num", "Response Satisfy Number", "Response Satisfy Type",
                      "Productivity", "Productivity %",
                      "Observed Normalized Valance", "Observed Normalized Arousal", "Observed Normalized Engagement", "Observed Normalized Vigilance",
                      "Robot Movement Speed", "Arm Swing Speed", "Proximity", "Autonomy", "Collab"])  # robot_state

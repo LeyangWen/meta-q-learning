@@ -110,8 +110,6 @@ class SearchDownStrategy(SimpleStrategy):
             human_response = data_buffer.normalize_human_response(
                 this_human_response)
 
-            self.optimal_result.check_and_update(human_response, robot_state, )
-
             current_satisfy_number, current_satisfy_type = CriteriaChecker.satisfy_check(human_response, normalized=env.normalized,
                                                                                          eng_centroids=centroid_loader.eng_centroids, vig_centroids=centroid_loader.vig_centroids,
                                                                                          eng_normalized_centroids=centroid_loader.eng_normalized_centroids, vig_normalized_centroids=centroid_loader.vig_normalized_centroids)
