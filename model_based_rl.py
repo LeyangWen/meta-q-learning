@@ -248,7 +248,7 @@ def parse_args():
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
 
-    parser.add_argument('--debug_mode', default=True,
+    parser.add_argument('--debug_mode', default=False,
                         help='Enable debug mode for smaller cycles')
     parser.add_argument('--slurm_id', default=0, type=int,
                         help='slurm id, used to mark runs')
