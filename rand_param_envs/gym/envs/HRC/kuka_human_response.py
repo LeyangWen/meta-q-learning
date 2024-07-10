@@ -115,7 +115,7 @@ class KukaHumanResponse(gym.Env):
                 2   # convert -1, 1 to 0, 1
             currStateMat = np.array(
                 [1, robot_state[0] ** 2, robot_state[0], robot_state[1] ** 2, robot_state[1], robot_state[2],
-                 robot_state[3], robot_state[4], 1])
+                 robot_state[3], robot_state[4], 0])
 
             if normalized == "env":
                 normalized = self.normalized
