@@ -226,7 +226,7 @@ def parse_args():
 
     # Wandb settings
     parser.add_argument(
-        '--wandb_project', default='HRC_4HR_all_2', help='wandb project name')
+        '--wandb_project', default='HRC_4HR_all_3_normalized', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online',
                         type=str, help='choose from online, offline, disabled')
