@@ -226,7 +226,7 @@ def parse_args():
 
     # Wandb settings
     parser.add_argument(
-        '--wandb_project', default='HRC_4HR_all_3_normalized', help='wandb project name')
+        '--wandb_project', default='HRC_4HR_all_4', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online',
                         type=str, help='choose from online, offline, disabled')
@@ -237,7 +237,7 @@ def parse_args():
                         type=int, help="number of human responses")
     parser.add_argument('--result_look_back_episode', default=[
                         10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', default=True, type=bool,
+    parser.add_argument('--normalized_human_response', default=False, type=bool,
                         help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
