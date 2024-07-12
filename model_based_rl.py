@@ -237,7 +237,7 @@ def parse_args():
                         type=int, help="number of human responses")
     parser.add_argument('--result_look_back_episode', default=[
                         10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', default=False, type=bool,
+    parser.add_argument('--normalized_human_response', action='store_true', type=bool,
                         help='if True, assume env returns normalized human response')
     parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
                         help='whether to add noise during grid search, set to 0 or false to deactivate')
@@ -402,7 +402,7 @@ if __name__ == '__main__':
             # update epsilon
             exploration_rate = exploration_rate * args.exploration_decay_rate
 
-        Grid search must be done after training if using normalization parameters from random search in data buffer
+        # Grid search must be done after training if using normalization parameters from random search in data buffer
         GT_optimal_result = grid_search(
             args, env, data_buffer=data_buffer, GT=True)
         print()
