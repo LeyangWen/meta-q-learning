@@ -63,11 +63,13 @@ def grid_search(args, env, model=None, data_buffer=None, GT=False):
         search_num = args.grid_search_num + noise
     continuous_bin = np.linspace(0, 1, search_num)
     binary_bin = [env.low_binary, env.high_binary]  # [-1, 1]
-    movement_speed_bin = np.linspace(env.move_spd_low_bnd, env.move_spd_high_bnd, search_num)
-    arm_speed_bin = np.linspace(env.arm_spd_low_bnd, env.arm_spd_high_bnd, search_num)
+    movement_speed_bin = np.linspace(
+        env.move_spd_low_bnd, env.move_spd_high_bnd, search_num)
+    arm_speed_bin = np.linspace(
+        env.arm_spd_low_bnd, env.arm_spd_high_bnd, search_num)
     bin_map = [(0,) * env.num_responses + (a, b, x, y, z) for a in movement_speed_bin for b in arm_speed_bin for x in binary_bin for y in
                binary_bin for z in binary_bin]
-   
+
     # full state needed only for env.compute_human_response
     full_states = np.array(bin_map)
 
@@ -220,6 +222,8 @@ def parse_args():
                         type=float, help='learning rate, float between 0 and 1')
     parser.add_argument('--weight_decay', default=0.001,
                         type=float, help='weight decay, float between 0 and 1')
+    parser.add_argument("--egg_noise", default=False, type=bool,
+                        help="Enabling EGG noise to response calculation")
     # parser.add_argument('--pretrained_model', default=None, help='path to pretrained model')
     parser.add_argument(
         '--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
@@ -248,7 +252,8 @@ def parse_args():
                         help='slurm id, used to mark runs')
     parser.add_argument('--arg_notes', default="increased number of random explore upfront to help with estimating mean",
                         type=str, help='notes for this run, will be stored in wandb')
-    parser.add_argument('--prefix_8_state', default=False, help="use 8 preset robot state values for random_explore in grid search")
+    parser.add_argument('--prefix_8_state', default=False,
+                        help="use 8 preset robot state values for random_explore in grid search")
     args = parser.parse_args()
     return args
 
@@ -270,7 +275,7 @@ if __name__ == '__main__':
         args.gt_grid_search_num = 100
 
     env = KukaHumanResponse_Rand(
-        normalized=args.normalized_human_response, num_responses=args.num_responses)  # Create the environment
+        normalized=args.normalized_human_response, egg_noise=args.egg_noise, num_responses=args.num_responses)  # Create the environment
     env.reset()
     for subject_id in range(18):  # 18 subjects
         print('\n\n------------------------------------ Subject',
@@ -303,7 +308,7 @@ if __name__ == '__main__':
                 print("Fill the buffer with prefix 8 data points")
         else:
             random_explore_num = args.random_explore_num
-            
+
         # Fill with random data points
         for _ in range(args.random_explore_num):
             if args.slurm_id == 0:
@@ -423,7 +428,7 @@ if __name__ == '__main__':
             re_log_dict[f"train/Productivity %"] = np.nan if np.isnan(
                 reward) else (reward / GT_optimal_result.best_productivity)
             this_run.log(re_log_dict)
-        
+
         # step 3: look back few episodes to find best result for this subject
         #### find converge and log ####
         print(
@@ -442,34 +447,36 @@ if __name__ == '__main__':
                                 GT_optimal_result.best_productivity, None,
                                 *GT_optimal_result.best_human_response,
                                 *GT_optimal_result.best_robot_state)
-        
+
         # c) Simple strategy results (multiple rows)
         strategies = [MaxProductivityStrategy(), SearchDownStrategy()]
         for strategy in strategies:
             strategy.find_best_state(env, data_buffer)
             wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.optimal_result.best_satisfy_number, strategy.optimal_result.best_satisfy_type,
-                                    strategy.optimal_result.best_productivity, strategy.optimal_result.best_productivity / GT_optimal_result.best_productivity,
+                                    strategy.optimal_result.best_productivity, strategy.optimal_result.best_productivity /
+                                    GT_optimal_result.best_productivity,
                                     *strategy.optimal_result.best_human_response,  # already normalized
                                     *strategy.optimal_result.best_robot_state)
-        
+
         # d) look back converge results (multiple rows)
         # [5,10,20,50,100]
         for look_back_episode in args.result_look_back_episode:
             converge_result, look_back_satisfy_num, look_back_satisfy_type = look_back_in_buffer(
                 data_buffer, look_back_episode)
             wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, look_back_satisfy_num, look_back_satisfy_type,
-                                    converge_result["productivity"], converge_result["productivity"] / GT_optimal_result.best_productivity,
+                                    converge_result["productivity"], converge_result["productivity"] /
+                                    GT_optimal_result.best_productivity,
                                     *converge_result["human_response_normalized"],
                                     *converge_result["robot_state"])
-        
+
         this_run.log({f"Train/Table/Results": wandb_GT_table})
-        
+
         # Save the model and result
         checkpoint_file = f"{args.checkpoint_dir}/{args.wandb_project}/subject_{args.sub_id}.pt"
         if not os.path.exists(os.path.dirname(checkpoint_file)):
             os.makedirs(os.path.dirname(checkpoint_file))
         torch.save(model.state_dict(), checkpoint_file)
-        
+
         elapsed_time = time.time() - start_time
         subject_time = time.time() - current_time
         current_time = time.time()

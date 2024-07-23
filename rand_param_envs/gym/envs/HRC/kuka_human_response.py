@@ -338,7 +338,7 @@ class KukaHumanResponse(gym.Env):
 
 
 class KukaHumanResponse_Rand(KukaHumanResponse):
-    def __init__(self, task={}, n_tasks=18, randomize_tasks=False, verbose=True, normalized=True, num_responses=4):
+    def __init__(self, task={}, n_tasks=18, randomize_tasks=False, verbose=True, normalized=True, egg_noise=False, num_responses=4):
         '''
         :param task: task is a dictionary with key 'goal_position'
         :param n_tasks: number of tasks, 18 subjects in total, 13 for training, 5 for testing
