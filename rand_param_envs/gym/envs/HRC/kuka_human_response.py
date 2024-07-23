@@ -350,6 +350,7 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         :param randomize_tasks: whether to randomize tasks
         '''
         self._task = task
+        self.eeg_noise = eeg_noise
         self.tasks = self.sample_tasks(n_tasks)
         self.load_from_task(self.tasks[0])
         # goal_position
@@ -367,8 +368,8 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
 
     # Load for EGG Noise
     def load_eeg_noise(self, file, index):
-        data = np.loadtxt(file, delimiter=",")
-        return data[index, :]
+        data = np.loadtxt(file, delimiter=",", skiprows=1)
+        return data[index, 1:]
 
     def step(self, action):
         return self._step(action)
