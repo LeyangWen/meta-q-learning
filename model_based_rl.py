@@ -224,6 +224,8 @@ def parse_args():
                         type=float, help='weight decay, float between 0 and 1')
     parser.add_argument("--eeg_noise", default=False, type=bool,
                         help="Enabling EGG noise to response calculation")
+    parser.add_argument("--convergence_threshold", default=0.001,
+                        type=float, help="Convergence Threshold Number")
     # parser.add_argument('--pretrained_model', default=None, help='path to pretrained model')
     parser.add_argument(
         '--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
@@ -331,6 +333,8 @@ if __name__ == '__main__':
         estimate_response_satisfy_type = np.nan
         exploit_response_satisfy_number = np.nan
         exploit_response_satisfy_type = np.nan
+        good_human_response_percent_array = []
+        convergence_step = None
         log_dicts = []
         if not args.normalized_human_response:
             centroid_loader = data_buffer
@@ -377,8 +381,20 @@ if __name__ == '__main__':
             log_dict = {}
             log_dict["train/episode"] = i  # our custom x axis metric
             log_dict[f"train/time (s)"] = time.time() - current_time
-            log_dict[f"train/Good human response %"] = exploit_success_num / \
+            current_good_human_response_percent = exploit_success_num / \
                 (exploit_total_num + 1e-6)
+            log_dict[f"train/Good human response %"] = current_good_human_response_percent
+            # If not converged yet
+            if convergence_step == None and len(good_human_response_percent_array) > 30:
+                # Calculate if the average of the difference is less than convergence threshold
+                mean_diff = (abs(current_good_human_response_percent - good_human_response_percent_array[-1]) + \
+                            abs(current_good_human_response_percent - good_human_response_percent_array[-3]) + \
+                            abs(current_good_human_response_percent - good_human_response_percent_array[-5]) + \
+                            abs(current_good_human_response_percent - good_human_response_percent_array[-10]) + \
+                            abs(current_good_human_response_percent - good_human_response_percent_array[-20])) / 5
+                if mean_diff < args.convergence_threshold:
+                    convergence_step = i 
+            good_human_response_percent_array.append(current_good_human_response_percent)
             # can not have "." in name or wandb plot have wrong x axis
             log_dict[f"train/values/Productivity (br_per_hr)"] = reward
             log_dict[f"train/values/Robot movement speed (m_per_s)"] = robot_state[0]
@@ -435,16 +451,15 @@ if __name__ == '__main__':
             f"Best result in the looking back {args.result_look_back_episode} episode in buffer")
         print("Logging table in wandb...")
         # a) table header here (one row)
-        # MODIFY: Add the 2 columns for engagement and vigilance
         wandb_GT_table = wandb.Table(
             columns=["Subject", "Category", "Look Back Num", "Response Satisfy Number", "Response Satisfy Type",
-                     "Productivity", "Productivity %",
+                     "Productivity", "Productivity %", "Convergence Episode",
                      "Observed Normalized Valance", "Observed Normalized Arousal", "Observed Normalized Engagement", "Observed Normalized Vigilance",
                      "Robot Movement Speed", "Arm Swing Speed", "Proximity", "Autonomy", "Collab"])  # robot_state
 
         # b) GT result (one row)
         wandb_GT_table.add_data(args.sub_id, "GT", None, GT_optimal_result.best_satisfy_number, GT_optimal_result.best_satisfy_type,
-                                GT_optimal_result.best_productivity, None,
+                                GT_optimal_result.best_productivity, None, convergence_step,
                                 *GT_optimal_result.best_human_response,
                                 *GT_optimal_result.best_robot_state)
 
@@ -454,7 +469,7 @@ if __name__ == '__main__':
             strategy.find_best_state(env, data_buffer)
             wandb_GT_table.add_data(args.sub_id, f"{strategy.strategy_name}", None, strategy.optimal_result.best_satisfy_number, strategy.optimal_result.best_satisfy_type,
                                     strategy.optimal_result.best_productivity, strategy.optimal_result.best_productivity /
-                                    GT_optimal_result.best_productivity,
+                                    GT_optimal_result.best_productivity, convergence_step,
                                     *strategy.optimal_result.best_human_response,  # already normalized
                                     *strategy.optimal_result.best_robot_state)
 
@@ -465,7 +480,7 @@ if __name__ == '__main__':
                 data_buffer, look_back_episode)
             wandb_GT_table.add_data(args.sub_id, "Results", look_back_episode, look_back_satisfy_num, look_back_satisfy_type,
                                     converge_result["productivity"], converge_result["productivity"] /
-                                    GT_optimal_result.best_productivity,
+                                    GT_optimal_result.best_productivity, convergence_step,
                                     *converge_result["human_response_normalized"],
                                     *converge_result["robot_state"])
 
