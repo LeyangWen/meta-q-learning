@@ -232,7 +232,7 @@ def parse_args():
 
     # Wandb settings
     parser.add_argument(
-        '--wandb_project', default='HRC_4HR_all_4', help='wandb project name')
+        '--wandb_project', default='HRC_4HR_all_6', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
     parser.add_argument('--wandb_mode', default='online',
                         type=str, help='choose from online, offline, disabled')
@@ -254,7 +254,7 @@ def parse_args():
                         help='slurm id, used to mark runs')
     parser.add_argument('--arg_notes', default="increased number of random explore upfront to help with estimating mean",
                         type=str, help='notes for this run, will be stored in wandb')
-    parser.add_argument('--prefix_8_state', default=False,
+    parser.add_argument('--prefix_8_state', action='store_true',
                         help="use 8 preset robot state values for random_explore in grid search")
     args = parser.parse_args()
     return args
