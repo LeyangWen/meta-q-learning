@@ -222,7 +222,7 @@ def parse_args():
                         type=float, help='learning rate, float between 0 and 1')
     parser.add_argument('--weight_decay', default=0.001,
                         type=float, help='weight decay, float between 0 and 1')
-    parser.add_argument("--egg_noise", default=False, type=bool,
+    parser.add_argument("--eeg_noise", default=False, type=bool,
                         help="Enabling EGG noise to response calculation")
     # parser.add_argument('--pretrained_model', default=None, help='path to pretrained model')
     parser.add_argument(
@@ -275,7 +275,7 @@ if __name__ == '__main__':
         args.gt_grid_search_num = 100
 
     env = KukaHumanResponse_Rand(
-        normalized=args.normalized_human_response, egg_noise=args.egg_noise, num_responses=args.num_responses)  # Create the environment
+        normalized=args.normalized_human_response, eeg_noise=args.eeg_noise, num_responses=args.num_responses)  # Create the environment
     env.reset()
     for subject_id in range(18):  # 18 subjects
         print('\n\n------------------------------------ Subject',

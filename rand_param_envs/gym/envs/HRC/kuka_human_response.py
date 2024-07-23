@@ -9,7 +9,7 @@ from utility.CriteriaChecker import *
 
 
 class KukaHumanResponse(gym.Env):
-    def __init__(self, verbose=True, normalized=True, num_responses=4):
+    def __init__(self, verbose=True, normalized=True, eeg_noise=False, num_responses=4):
         '''
         :param max_steps: maximum number of steps
         :param verbose: whether to print out information
@@ -47,6 +47,7 @@ class KukaHumanResponse(gym.Env):
         self.verbose = verbose
         self.normalized = normalized
 
+        self.eeg_noise = False
         self.continuous_change_speed = 15
         # min #todo: maybe make this smaller 90% break time is very long
         self.half_break_time = 2
@@ -123,24 +124,28 @@ class KukaHumanResponse(gym.Env):
                 assert normalized in [True, False]
 
             if normalized:
-                valence = np.matmul(currStateMat, self.val_coeffs)
-                arousal = np.matmul(currStateMat, self.aro_coeffs)
+                valence = np.matmul(currStateMat, self.val_coeffs) + \
+                    self.eeg_noise * self.val_eeg_noise
+                arousal = np.matmul(currStateMat, self.aro_coeffs) + \
+                    self.eeg_noise * self.aro_eeg_noise
                 # Engament and Vigilance
-                engagement = np.matmul(currStateMat, self.eng_coeffs)
-                vigilance = np.matmul(currStateMat, self.vig_coeffs)
+                engagement = np.matmul(
+                    currStateMat, self.eng_coeffs) + self.eeg_noise * self.eng_eeg_noise
+                vigilance = np.matmul(
+                    currStateMat, self.vig_coeffs) + self.eeg_noise * self.vig_eeg_noise
 
             else:
                 valence = np.matmul(
-                    currStateMat, self.val_coeffs) * self.val_std + self.val_mean
+                    currStateMat, self.val_coeffs) * self.val_std + self.val_mean + self.eeg_noise * self.val_eeg_noise
                 arousal = np.matmul(
-                    currStateMat, self.aro_coeffs) * self.aro_std + self.aro_mean
+                    currStateMat, self.aro_coeffs) * self.aro_std + self.aro_mean + self.eeg_noise * self.aro_eeg_noise
 
                 # Engagement and vigilacnce
                 engagement = np.matmul(
-                    currStateMat, self.eng_coeffs) * self.eng_std + self.eng_mean
+                    currStateMat, self.eng_coeffs) * self.eng_std + self.eng_mean + self.eeg_noise * self.eng_eeg_noise
 
                 vigilance = np.matmul(
-                    currStateMat, self.vig_coeffs) * self.vig_std + self.vig_mean
+                    currStateMat, self.vig_coeffs) * self.vig_std + self.vig_mean + self.eeg_noise * self.vig_eeg_noise
             return np.array([valence, arousal, engagement, vigilance])
         else:
             raise NotImplementedError
@@ -338,7 +343,7 @@ class KukaHumanResponse(gym.Env):
 
 
 class KukaHumanResponse_Rand(KukaHumanResponse):
-    def __init__(self, task={}, n_tasks=18, randomize_tasks=False, verbose=True, normalized=True, egg_noise=False, num_responses=4):
+    def __init__(self, task={}, n_tasks=18, randomize_tasks=False, verbose=True, normalized=True, eeg_noise=False, num_responses=4):
         '''
         :param task: task is a dictionary with key 'goal_position'
         :param n_tasks: number of tasks, 18 subjects in total, 13 for training, 5 for testing
@@ -349,7 +354,7 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.load_from_task(self.tasks[0])
         # goal_position
         super(KukaHumanResponse_Rand, self).__init__(
-            verbose=verbose, normalized=normalized, num_responses=num_responses)
+            verbose=verbose, normalized=normalized, eeg_noise=eeg_noise, num_responses=num_responses)
 
     def load_response(self, file, index):
         data = np.loadtxt(file, delimiter=',')
@@ -359,6 +364,11 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
     def load_vigi_engage_response(self, file, index):
         data = np.loadtxt(file, delimiter=',')
         return data[index, :9], data[index, 9], data[index, 10], data[index, 11], data[index, 12], data[index, 13]
+
+    # Load for EGG Noise
+    def load_eeg_noise(self, file, index):
+        data = np.loadtxt(file, delimiter=",")
+        return data[index, :]
 
     def step(self, action):
         return self._step(action)
@@ -386,6 +396,12 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
                 'eng_centroid1'], this_task['eng_centroid2'] = self.load_vigi_engage_response(engagement_file, i)
             this_task['vig_coeffs'], this_task['vig_mean'], this_task['vig_std'], this_task['vig_centroid0'], this_task[
                 'vig_centroid1'], this_task['vig_centroid2'] = self.load_vigi_engage_response(vigilance_file, i)
+
+            # If we need to add eeg noise to the calculation, store accordingly
+            if self.eeg_noise:
+                eeg_noise_file = os.path.join(BASE_FOLDER, "EEG_noise_std.csv")
+                this_task['val_eeg_noise'], this_task['aro_eeg_noise'], this_task['eng_eeg_noise'], this_task['vig_eeg_noise'] = self.load_eeg_noise(
+                    eeg_noise_file, i)
 
             tasks.append(this_task)
         return tasks
@@ -416,15 +432,25 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
         self.eng_coeffs = task['eng_coeffs']
         self.eng_mean = task['eng_mean']
         self.eng_std = task['eng_std']
-        self.eng_normalized_centroids = np.array([task['eng_centroid0'], task['eng_centroid1'], task['eng_centroid2']])
-        self.eng_centroids = (self.eng_normalized_centroids * self.eng_std + self.eng_mean)
+        self.eng_normalized_centroids = np.array(
+            [task['eng_centroid0'], task['eng_centroid1'], task['eng_centroid2']])
+        self.eng_centroids = (
+            self.eng_normalized_centroids * self.eng_std + self.eng_mean)
 
         # Vigilance Engagement
         self.vig_coeffs = task['vig_coeffs']
         self.vig_mean = task['vig_mean']
         self.vig_std = task['vig_std']
-        self.vig_normalized_centroids = np.array([task['vig_centroid0'], task['vig_centroid1'], task['vig_centroid2']])
-        self.vig_centroids = (self.vig_normalized_centroids * self.vig_std + self.vig_mean)
+        self.vig_normalized_centroids = np.array(
+            [task['vig_centroid0'], task['vig_centroid1'], task['vig_centroid2']])
+        self.vig_centroids = (
+            self.vig_normalized_centroids * self.vig_std + self.vig_mean)
+
+        # Set the eeg noise accordingly if it's enabled
+        self.val_eeg_noise = task['val_eeg_noise'] if self.eeg_noise else 0
+        self.aro_eeg_noise = task['aro_eeg_noise'] if self.eeg_noise else 0
+        self.eng_eeg_noise = task['eng_eeg_noise'] if self.eeg_noise else 0
+        self.vig_eeg_noise = task['vig_eeg_noise'] if self.eeg_noise else 0
 
 
 if __name__ == '__main__':
