@@ -222,7 +222,7 @@ def parse_args():
                         type=float, help='learning rate, float between 0 and 1')
     parser.add_argument('--weight_decay', default=0.001,
                         type=float, help='weight decay, float between 0 and 1')
-    parser.add_argument("--eeg_noise", default=False, type=bool,
+    parser.add_argument("--eeg_noise", action='store_true',
                         help="Enabling EGG noise to response calculation")
     parser.add_argument("--convergence_threshold", default=0.001,
                         type=float, help="Convergence Threshold Number")
