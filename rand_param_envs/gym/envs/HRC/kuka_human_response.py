@@ -336,7 +336,7 @@ class KukaHumanResponse(gym.Env):
 
         return self.state, reward, done, {}
 
-    def _render(self):
+    def _render(self, close=True):
         print(f"Step: {self.steps_taken}, State: {self.state}, "
               f"Action,{self.action}, Done: {self.done}, "
               f"Reward: {self.compute_reward()}")
