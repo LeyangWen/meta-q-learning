@@ -202,60 +202,37 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Human Response Model')
     parser.add_argument('--device', default='cuda', help='device, cpu or cuda')
     # Training parameters
-    parser.add_argument('--grid_search_num', default=100,
-                        type=int, help='number of grid search, positive integer')
-    parser.add_argument('--gt_grid_search_num', default=500, type=int,
-                        help='number of grid search for GT, positive integer')
-    parser.add_argument('--random_explore_num', default=128,
-                        type=int, help='number of random explore, positive integer')
-    parser.add_argument('--train_batch_size', default=32, type=int,
-                        help='batch size for training, positive integer')
-    parser.add_argument('--train_step_per_episode', default=1024, type=int,
-                        help='number of training steps per episode, positive integer')
-    parser.add_argument('--episode_num', default=512, type=int,
-                        help='batch size for training, positive integer')
-    parser.add_argument('--exploration_rate', default=0.5,
-                        type=float, help='exploration rate, float between 0 and 1')
-    parser.add_argument('--exploration_decay_rate', default=0.99,
-                        type=float, help='exploration decay rate, float between 0 and 1')
-    parser.add_argument('--learning_rate', default=0.001,
-                        type=float, help='learning rate, float between 0 and 1')
-    parser.add_argument('--weight_decay', default=0.001,
-                        type=float, help='weight decay, float between 0 and 1')
-    parser.add_argument("--eeg_noise", action='store_true',
-                        help="Enabling EGG noise to response calculation")
-    parser.add_argument("--convergence_threshold", default=0.001,
-                        type=float, help="Convergence Threshold Number")
+    parser.add_argument('--grid_search_num', default=100, type=int, help='number of grid search, positive integer')
+    parser.add_argument('--gt_grid_search_num', default=500, type=int, help='number of grid search for GT, positive integer')
+    parser.add_argument('--random_explore_num', default=128, type=int, help='number of random explore, positive integer')
+    parser.add_argument('--train_batch_size', default=32, type=int, help='batch size for training, positive integer')
+    parser.add_argument('--train_step_per_episode', default=1024, type=int, help='number of training steps per episode, positive integer')
+    parser.add_argument('--episode_num', default=512, type=int, help='batch size for training, positive integer')
+    parser.add_argument('--exploration_rate', default=0.5, type=float, help='exploration rate, float between 0 and 1')
+    parser.add_argument('--exploration_decay_rate', default=0.99, type=float, help='exploration decay rate, float between 0 and 1')
+    parser.add_argument('--learning_rate', default=0.001, type=float, help='learning rate, float between 0 and 1')
+    parser.add_argument('--weight_decay', default=0.001, type=float, help='weight decay, float between 0 and 1')
+    parser.add_argument("--convergence_threshold", default=0.001, type=float, help="Convergence Threshold Number")
     # parser.add_argument('--pretrained_model', default=None, help='path to pretrained model')
-    parser.add_argument(
-        '--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
+    parser.add_argument('--checkpoint_dir', default='./checkpoints', help='path to save checkpoints')
 
     # Wandb settings
-    parser.add_argument(
-        '--wandb_project', default='HRC_4HR_all_6', help='wandb project name')
+    parser.add_argument('--wandb_project', default='HRC_4HR_all_7_new', help='wandb project name')
     # parser.add_argument('--wandb_name', default='Test2-32rand-512after_fixedNorm_0.001decay', help='wandb run name')
-    parser.add_argument('--wandb_mode', default='online',
-                        type=str, help='choose from online, offline, disabled')
+    parser.add_argument('--wandb_mode', default='online', type=str, help='choose from online, offline, disabled')
     parser.add_argument('--wandb_api_key', default='x'*40, help='wandb key')
 
     # Other settings
-    parser.add_argument("--num_responses", default=4,
-                        type=int, help="number of human responses")
-    parser.add_argument('--result_look_back_episode', default=[
-                        10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
-    parser.add_argument('--normalized_human_response', action='store_true',
-                        help='if True, assume env returns normalized human response')
-    parser.add_argument('--add_noise_during_grid_search', default=20, type=int,
-                        help='whether to add noise during grid search, set to 0 or false to deactivate')
+    parser.add_argument("--num_responses", default=4, type=int, help="number of human responses")
+    parser.add_argument('--result_look_back_episode', default=[10, 20, 50, 100], type=list, help='number of episodes to look back for best result')
+    parser.add_argument('-norm','--normalized_human_response', action='store_true', help='if True, assume env returns normalized human response')
+    parser.add_argument('--add_noise_during_grid_search', default=20, type=int, help='whether to add noise during grid search, set to 0 or false to deactivate')
+    parser.add_argument("--eeg_noise", action='store_true', help="Enabling EGG noise to response calculation")
 
-    parser.add_argument('--debug_mode', default=False,
-                        help='Enable debug mode for smaller cycles')
-    parser.add_argument('--slurm_id', default=0, type=int,
-                        help='slurm id, used to mark runs')
-    parser.add_argument('--arg_notes', default="increased number of random explore upfront to help with estimating mean",
-                        type=str, help='notes for this run, will be stored in wandb')
-    parser.add_argument('--prefix_8_state', action='store_true',
-                        help="use 8 preset robot state values for random_explore in grid search")
+    parser.add_argument('--debug_mode', default=False, help='Enable debug mode for smaller cycles')
+    parser.add_argument('--slurm_id', default=0, type=int, help='slurm id, used to mark runs')
+    parser.add_argument('--arg_notes', default='', type=str, help='notes for this run, will be stored in wandb')
+    parser.add_argument('--prefix_8_state', action='store_true', help="use 8 preset robot state values for random_explore in grid search")
     args = parser.parse_args()
     return args
 
