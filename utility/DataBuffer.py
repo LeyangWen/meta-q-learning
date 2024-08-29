@@ -94,8 +94,7 @@ class DataBuffer:
 
     def sample(self, batch_size):
         # todo: currently random sample, some data might be sampled multiple times or missed
-        idx = np.random.choice(np.arange(len(self.buffer)),
-                               size=batch_size, replace=False)
+        idx = np.random.choice(np.arange(len(self.buffer)), size=batch_size, replace=False)
         robot_state_buffer_np = np.array(self.robot_state_buffer)
         human_response_buffer_np = np.array(self.human_response_buffer)
         return human_response_buffer_np[idx], robot_state_buffer_np[idx]
@@ -173,6 +172,13 @@ class DataBuffer:
             # Find the three centroids as well
             if (len(human_response_buffer_np_exploit) >= 3):
                 self.calculate_clusters(human_response_buffer_np_exploit)
+
+    def get_normalization_parameters(self):
+        param = [self.val_mean, self.val_std, self.aro_mean, self.aro_std,
+                    self.eng_mean, self.eng_std, self.vig_mean, self.vig_std,
+                    self.eng_centroids, self.eng_normalized_centroids,
+                    self.vig_centroids, self.vig_normalized_centroids]
+        return param
 
     def normalize_human_response(self, human_response):
         """ Normalize human response using the normalization parameters in the data buffer

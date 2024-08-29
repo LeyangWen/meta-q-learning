@@ -105,15 +105,13 @@ class KukaHumanResponse(gym.Env):
                 robot_state = curr_state.copy()
             else:
                 print("LENGTH: ", len(curr_state))
-                raise ValueError(
-                    "curr_state should be length 5 or plus the number of optional elements")
+                raise ValueError("curr_state should be length 5 or plus the number of optional elements")
 
             # check if last three is binary -1, 1
             if not np.all(np.abs(robot_state[2:]) == 1):
                 raise ValueError("Last three elements of robot state should be binary -1 or 1 "
                                  f"got {robot_state} instead")
-            robot_state[2:] = (robot_state[2:] + 1) / \
-                2   # convert -1, 1 to 0, 1
+            robot_state[2:] = (robot_state[2:] + 1) / 2   # convert -1, 1 to 0, 1
             currStateMat = np.array(
                 [1, robot_state[0] ** 2, robot_state[0], robot_state[1] ** 2, robot_state[1], robot_state[2],
                  robot_state[3], robot_state[4], 0])
@@ -124,10 +122,8 @@ class KukaHumanResponse(gym.Env):
                 assert normalized in [True, False]
 
             if normalized:
-                valence = np.matmul(currStateMat, self.val_coeffs) + \
-                    self.eeg_noise * self.val_eeg_noise
-                arousal = np.matmul(currStateMat, self.aro_coeffs) + \
-                    self.eeg_noise * self.aro_eeg_noise
+                valence = np.matmul(currStateMat, self.val_coeffs) + self.eeg_noise * self.val_eeg_noise
+                arousal = np.matmul(currStateMat, self.aro_coeffs) + self.eeg_noise * self.aro_eeg_noise
                 # Engament and Vigilance
                 engagement = np.matmul(
                     currStateMat, self.eng_coeffs) + self.eeg_noise * self.eng_eeg_noise
@@ -156,8 +152,7 @@ class KukaHumanResponse(gym.Env):
         self.state[-3:] = np.sign(self.state[-3:])
 
         # Add the first number of responses to the state
-        self.state[:self.num_responses] = self.compute_human_response(
-            self.state)
+        self.state[:self.num_responses] = self.compute_human_response(self.state)
 
         self.done = False
         self.steps_taken = 0

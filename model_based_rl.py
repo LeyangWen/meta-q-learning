@@ -21,8 +21,7 @@ def train_step(args, model, data_buffer, optimizer, loss_function, batch_size):
     # Sample data points from the buffer
     human_responses, robot_states = data_buffer.sample(batch_size)
     if not args.normalized_human_response:  # env returns actual human response not normalized, normalize here using cumulative mean and std from explore data points
-        human_responses = data_buffer.normalize_human_response_batch(
-            human_responses)
+        human_responses = data_buffer.normalize_human_response_batch(human_responses)
 
     # Convert numpy arrays to PyTorch tensors and move to args.device
     robot_states = torch.from_numpy(robot_states).float().to(args.device)
@@ -432,13 +431,22 @@ if __name__ == '__main__':
             columns=["Subject", "Category", "Look Back Num", "Response Satisfy Number", "Response Satisfy Type",
                      "Productivity", "Productivity %", "Convergence Episode",
                      "Observed Normalized Valance", "Observed Normalized Arousal", "Observed Normalized Engagement", "Observed Normalized Vigilance",
-                     "Robot Movement Speed", "Arm Swing Speed", "Proximity", "Autonomy", "Collab"])  # robot_state
+                     "Robot Movement Speed", "Arm Swing Speed", "Proximity", "Autonomy", "Collab",
+                     "Valance Mean", "Valance Std", "Arousal Mean", "Arousal Std",
+                     "Engagement Mean", "Engagement Std", "Vigilance Mean", "Vigilance Std",
+                     "Engagement Centroids", "Engagement Normalized Centroids",
+                     "Vigilance Centroids", "Vigilance Normalized Centroids",
+                     ])
 
         # b) GT result (one row)
+        normalization_parameters = data_buffer.get_normalization_parameters()
+        normalization_parameter_len = len(normalization_parameters)
         wandb_GT_table.add_data(args.sub_id, "GT", None, GT_optimal_result.best_satisfy_number, GT_optimal_result.best_satisfy_type,
                                 GT_optimal_result.best_productivity, None, convergence_step,
                                 *GT_optimal_result.best_human_response,
-                                *GT_optimal_result.best_robot_state)
+                                *GT_optimal_result.best_robot_state,
+                                *normalization_parameters
+                                )
 
         # c) Simple strategy results (multiple rows)
         strategies = [MaxProductivityStrategy(), SearchDownStrategy()]
@@ -448,7 +456,8 @@ if __name__ == '__main__':
                                     strategy.optimal_result.best_productivity, strategy.optimal_result.best_productivity /
                                     GT_optimal_result.best_productivity, convergence_step,
                                     *strategy.optimal_result.best_human_response,  # already normalized
-                                    *strategy.optimal_result.best_robot_state)
+                                    *strategy.optimal_result.best_robot_state,
+                                    *[None]*normalization_parameter_len)
 
         # d) look back converge results (multiple rows)
         # [5,10,20,50,100]
@@ -459,7 +468,8 @@ if __name__ == '__main__':
                                     converge_result["productivity"], converge_result["productivity"] /
                                     GT_optimal_result.best_productivity, convergence_step,
                                     *converge_result["human_response_normalized"],
-                                    *converge_result["robot_state"])
+                                    *converge_result["robot_state"],
+                                    *[None]*normalization_parameter_len)
 
         this_run.log({f"Train/Table/Results": wandb_GT_table})
 
