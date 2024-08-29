@@ -19,7 +19,7 @@ This repository contains the official implementation of the paper [Individualize
 To run the project, execute the `model_based_rl.py` script. This script trains the Human Response Model and uses it to control a robot in a simulated environment. The robot's actions are guided by the predicted human responses to its state.
 
 ```bash
-nohup python model_based_rl.py --wandb_project 'HRC_4HR_all_7_new' --arg_notes 'new_csv-wNorm'
+nohup python model_based_rl.py --wandb_project 'HRC_4HR_all_10_new' --arg_notes 'new_csv-1024search-centroid_printout'
 ```
 
 ## Citation
