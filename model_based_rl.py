@@ -197,6 +197,26 @@ def look_back_in_buffer(data_buffer, look_back_episode):
     return converge_result, best_response_satisfy_number, best_response_satisfy_type
 
 
+def collectLHSActions (n_samples, continuous_ranges=[(27.8,143.8), (23.8,109.1)], binary_params_count=3):
+    """
+    From LHS function from Francis
+    todo: put in random_explore
+    """
+    # Number of continuous parameters
+    n_continuous = len(continuous_ranges)
+    # Total number of parameters
+    total_params_count = n_continuous + binary_params_count
+    #np.random.seed (42)
+    # Generate LHS samples for all parameters
+    lhs_samples = lhs(total_params_count, samples=n_samples)
+    # Scale the LHS samples to the specified continuous parameter ranges
+    for i, (low, high) in enumerate(continuous_ranges):
+        lhs_samples[:, i] = lhs_samples[:, i] * (high - low) + low
+    # For binary parameters, round the LHS samples to the nearest valid binary value (0 or 1)
+    for i in range(n_continuous, total_params_count):
+        lhs_samples[:, i] = np.round(lhs_samples[:, i])
+    return lhs_samples
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Human Response Model')
     parser.add_argument('--device', default='cuda', help='device, cpu or cuda')
