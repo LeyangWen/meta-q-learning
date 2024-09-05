@@ -125,21 +125,17 @@ class KukaHumanResponse(gym.Env):
                 valence = np.matmul(currStateMat, self.val_coeffs) + self.eeg_noise * self.val_eeg_noise
                 arousal = np.matmul(currStateMat, self.aro_coeffs) + self.eeg_noise * self.aro_eeg_noise
                 # Engament and Vigilance
-                engagement = np.matmul(
-                    currStateMat, self.eng_coeffs) + self.eeg_noise * self.eng_eeg_noise
-                vigilance = np.matmul(
-                    currStateMat, self.vig_coeffs) + self.eeg_noise * self.vig_eeg_noise
+                engagement = np.matmul(currStateMat, self.eng_coeffs) + self.eeg_noise * self.eng_eeg_noise
+                vigilance = np.matmul(currStateMat, self.vig_coeffs) + self.eeg_noise * self.vig_eeg_noise
 
-                    currStateMat, self.val_coeffs) * self.val_std + self.val_mean + self.eeg_noise * self.val_eeg_noise
-                arousal = np.matmul(
-                    currStateMat, self.aro_coeffs) * self.aro_std + self.aro_mean + self.eeg_noise * self.aro_eeg_noise
+            else:
+                valence = np.matmul(currStateMat, self.val_coeffs) * self.val_std + self.val_mean + self.eeg_noise * self.val_eeg_noise
+                arousal = np.matmul(currStateMat, self.aro_coeffs) * self.aro_std + self.aro_mean + self.eeg_noise * self.aro_eeg_noise
 
                 # Engagement and vigilacnce
-                engagement = np.matmul(
-                    currStateMat, self.eng_coeffs) * self.eng_std + self.eng_mean + self.eeg_noise * self.eng_eeg_noise
+                engagement = np.matmul(currStateMat, self.eng_coeffs) * self.eng_std + self.eng_mean + self.eeg_noise * self.eng_eeg_noise
 
-                vigilance = np.matmul(
-                    currStateMat, self.vig_coeffs) * self.vig_std + self.vig_mean + self.eeg_noise * self.vig_eeg_noise
+                vigilance = np.matmul(currStateMat, self.vig_coeffs) * self.vig_std + self.vig_mean + self.eeg_noise * self.vig_eeg_noise
             return np.array([valence, arousal, engagement, vigilance])
         else:
             raise NotImplementedError
