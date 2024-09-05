@@ -130,8 +130,6 @@ class KukaHumanResponse(gym.Env):
                 vigilance = np.matmul(
                     currStateMat, self.vig_coeffs) + self.eeg_noise * self.vig_eeg_noise
 
-            else:
-                valence = np.matmul(
                     currStateMat, self.val_coeffs) * self.val_std + self.val_mean + self.eeg_noise * self.val_eeg_noise
                 arousal = np.matmul(
                     currStateMat, self.aro_coeffs) * self.aro_std + self.aro_mean + self.eeg_noise * self.aro_eeg_noise
@@ -376,10 +374,10 @@ class KukaHumanResponse_Rand(KukaHumanResponse):
     # Modify the tasks here for vigilance and engagement
     def sample_tasks(self, num_tasks):
         BASE_FOLDER = 'rand_param_envs/gym/envs/HRC/human_response/'
-        valence_file = os.path.join(BASE_FOLDER, 'valence_new.csv')
-        arousal_file = os.path.join(BASE_FOLDER, 'arousal_new.csv')
-        engagement_file = os.path.join(BASE_FOLDER, 'engagement_new.csv')
-        vigilance_file = os.path.join(BASE_FOLDER, "vigilance_new.csv")
+        valence_file = os.path.join(BASE_FOLDER, 'valence_python.csv')
+        arousal_file = os.path.join(BASE_FOLDER, 'arousal_python.csv')
+        engagement_file = os.path.join(BASE_FOLDER, 'engagement_python.csv')
+        vigilance_file = os.path.join(BASE_FOLDER, "vigilance_python.csv")
         tasks = []
         for i in range(num_tasks):
             this_task = {}
